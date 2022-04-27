@@ -156,58 +156,63 @@ def print_equations(matrix, rhs, internal_forces,decimals):
     return equation_string
 
 ###############################################################################
-# INPUTS
-###############################################################################
-
-nodes = np.array([
-    [0,0],
-    [1,1],
-    [1,0],
-    [2,2],
-    [2,0],
-    [3,1],
-    [3,0],
-    [4,0]
-    ])
-
-members = np.array([
-    [1,2],
-    [1,3],
-    [2,3],
-    [3,5],
-    [2,5],
-    [2,4],
-    [4,5],
-    [5,7],
-    [5,6],
-    [6,7],
-    [4,6],
-    [7,8],
-    [6,8]
-    ])
-
-support = np.array([
-    [1, 0],
-    [1, 90],
-    [8, 90]
-    ],dtype='f')
-
-f_ext = np.array([
-    [3,-90,10],
-    [4,180,10],
-    [5,-90,15]],dtype='f')
-
-# convert angles to radians
-support[:,1] = np.radians(support[:,1])
-f_ext[:,1] = np.radians(f_ext[:,1])
-
-###############################################################################
 # STREAMLIT
 ###############################################################################
 
 st.set_page_config(layout="wide")
 
 st.title("Calculating internal forces of a beam structure")
+
+###############################################################################
+# INPUTS
+###############################################################################
+
+nodes_str = st.sidebar.text_input(label = "nodes", value='''[0,0],
+[1,1],
+[1,0],
+[2,2],
+[2,0],
+[3,1],
+[3,0],
+[4,0]''')
+
+exec("nodes = np.array([" + nodes_str + "])")
+
+members_str = st.sidebar.text_input(label = "members", value='''[1,2],
+[1,3],
+[2,3],
+[3,5],
+[2,5],
+[2,4],
+[4,5],
+[5,7],
+[5,6],
+[6,7],
+[4,6],
+[7,8],
+[6,8]''')
+
+exec("members = np.array([" + members_str + "])")
+
+support_str = st.sidebar.text_input(label = "support", value='''[1, 0],
+[1, 90],
+[8, 90]''')
+
+exec("support = np.array([" + support_str + "],dtype='f')")
+
+f_ext_str = st.sidebar.text_input(label = "external forces", value='''[3,-90,10],
+[4,180,10],
+[5,-90,15]''')
+
+exec("f_ext = np.array([" + f_ext_str + "],dtype='f')")
+
+# convert angles to radians
+support[:,1] = np.radians(support[:,1])
+f_ext[:,1] = np.radians(f_ext[:,1])
+
+###############################################################################
+# CALCULATIONS AND OUTPUTS
+###############################################################################
 
 matrix, rhs, internal_forces = update_data(nodes,members,support,f_ext)
 
