@@ -13,8 +13,6 @@ import matplotlib.colors as mcol
 import matplotlib.cm as cm
 
 import streamlit as st
-from state import count_sessions
-count_sessions()
 
 ###############################################################################
 # CALCULATIONS
