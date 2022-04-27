@@ -1,4 +1,4 @@
-# Animation of Approximation
+# Animation of the Calculations of a Static Beam Structur
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/PhiSpel/spielbeispiel-lgls/main)
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
