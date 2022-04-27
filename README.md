@@ -1,6 +1,6 @@
 # Animation of Approximation
 
-[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/PhiSpel/spielbeispiel-approximation/main)
+[![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://share.streamlit.io/PhiSpel/spielbeispiel-lgls/main)
 [![License: CC BY-SA 4.0](https://img.shields.io/badge/License-CC%20BY--SA%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-sa/4.0/)
 
 This is a simple web app demonstrating the linear equation system required to solve a static beam structure. It is largely based on code from @m-r-schenk. [Click here](https://share.streamlit.io/PhiSpel/spielbeispiel-lgls/main) to launch the app. This app is built using python and streamlit.
