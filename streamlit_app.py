@@ -314,9 +314,9 @@ fig = update_plot(internal_forces,members,nodes,f_ext)
 # OUTPUTS
 ###############################################################################
 
-#with st.expander('Look at the plot', expanded=False):
-selected_points = plotly_events(fig)
-st.write(str(selected_points))
+with st.expander('Look at the plot', expanded=True):
+    selected_points = plotly_events(fig)
+    st.write("selected point: " + str(selected_points))
 
-#with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
-st.markdown(print_equations(matrix, rhs, internal_forces,decimals,textsize))
+with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
+    st.markdown(print_equations(matrix, rhs, internal_forces,decimals,textsize))
