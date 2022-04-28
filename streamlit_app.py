@@ -12,7 +12,11 @@ from matplotlib.ticker import MaxNLocator
 import matplotlib.colors as mcol
 import matplotlib.cm as cm
 
+import plotly.express as px
+import chart_studio.plotly as py
+
 import streamlit as st
+from streamlit_plotly_events import plotly_events
 
 ###############################################################################
 # CALCULATIONS
@@ -167,7 +171,7 @@ st.title("Calculating internal forces of a beam structure")
 # INPUTS
 ###############################################################################
 
-nodes_str = st.sidebar.text_input(label = "nodes", value='''[0,0],
+nodes_str = st.sidebar.text_input(label = "nodes", help = "[x-position,y-position]", value='''[0,0],
 [1,1],
 [1,0],
 [2,2],
@@ -178,7 +182,7 @@ nodes_str = st.sidebar.text_input(label = "nodes", value='''[0,0],
 
 exec("nodes = np.array([" + nodes_str + "])")
 
-members_str = st.sidebar.text_input(label = "members", value='''[1,2],
+members_str = st.sidebar.text_input(label = "members", help = "[1st node,2nd node]", value='''[1,2],
 [1,3],
 [2,3],
 [3,5],
@@ -194,13 +198,13 @@ members_str = st.sidebar.text_input(label = "members", value='''[1,2],
 
 exec("members = np.array([" + members_str + "])")
 
-support_str = st.sidebar.text_input(label = "support", value='''[1, 0],
+support_str = st.sidebar.text_input(label = "support", help = "[node,angle]", value='''[1, 0],
 [1, 90],
 [8, 90]''')
 
 exec("support = np.array([" + support_str + "],dtype='f')")
 
-f_ext_str = st.sidebar.text_input(label = "external forces", value='''[3,-90,10],
+f_ext_str = st.sidebar.text_input(label = "external forces", help = "[node,angle,force]", value='''[3,-90,10],
 [4,180,10],
 [5,-90,15]''')
 
@@ -211,15 +215,24 @@ support[:,1] = np.radians(support[:,1])
 f_ext[:,1] = np.radians(f_ext[:,1])
 
 ###############################################################################
-# CALCULATIONS AND OUTPUTS
+# CALCULATIONS
 ###############################################################################
 
 matrix, rhs, internal_forces = update_data(nodes,members,support,f_ext)
 
 decimals = st.sidebar.number_input(label="precision of print",min_value=0,max_value=5,value=2)
 
-st.markdown(print_equations(matrix, rhs, internal_forces,decimals))
-
 [fig,ax] = update_plot(internal_forces,members,nodes)
 
-st.pyplot(fig)
+###############################################################################
+# OUTPUTS
+###############################################################################
+
+with st.expander('Look at the Matrix', expanded=True):
+    st.markdown(print_equations(matrix, rhs, internal_forces,decimals))
+
+with st.expander('Look at this plot', expanded=False):
+    #scatter = py.plot_mpl(fig, filename="my first plotly plot")
+    scatter = px.scatter(nodes[:,0],nodes[:,1])
+    selected_points = plotly_events(fig)
+    st.write(str(selected_points))
