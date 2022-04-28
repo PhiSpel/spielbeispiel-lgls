@@ -19,6 +19,8 @@ import plotly.graph_objects as go
 import streamlit as st
 from streamlit_plotly_events import plotly_events
 
+import math
+
 ###############################################################################
 # CALCULATIONS
 ###############################################################################
@@ -141,8 +143,20 @@ def update_plot(internal_forces,members,nodes):
 # PRINTING OUTPUT
 ###############################################################################
 
-def bmatrix(a):
-    text = r'\begin{bmatrix}'
+def bmatrix(a,matrixtype=''):
+    # if matrixtype == 'h':
+    #     text = r' \begin{matrix} '
+    #     text += '\n'
+    #     for x in range(len(a)):
+    #         text+= str(a[x])
+    #         text += r' & '
+            
+    #     text += r' \end{matrix} '
+    #     return text
+    if matrixtype == 'b':
+        text = r' \begin{bmatrix} '
+    elif matrixtype == 'v':
+        text = r' \begin{matrix} '
     text += '\n'
     for x in range(len(a)):
         for y in range(len(a[x])):
@@ -151,10 +165,15 @@ def bmatrix(a):
         text = text[:-2]
         text += r'\\'
         text += '\n'
-    text += r'\end{bmatrix}'
+    if matrixtype == 'b':
+        text += r' \end{bmatrix} '
+    elif matrixtype == 'v':
+        text += r' \end{matrix} '
+    
     return text
 
 def print_equations(matrix, rhs, internal_forces,decimals,textsize):
+    label_vector = [[r' \text{ ' + str(math.floor(x/2)+1) + '}'] for x in np.arange(0,len(rhs))]
     matrix = np.round(matrix,decimals)
     matrix[matrix==0] = 0
     rhs = np.round(rhs,decimals)
@@ -163,12 +182,20 @@ def print_equations(matrix, rhs, internal_forces,decimals,textsize):
     internal_forces[internal_forces==0] = 0
     equation_string = r'$'
     equation_string += textsize
-    equation_string += bmatrix(matrix)
+    equation_string += r' \begin{matrix} '
+    equation_string += r'\text{nodes} & '
+    #equation_string += bmatrix(label_vector,'h')
+    equation_string += r' & \text{internal forces} & \text{external forces}\\'
+    equation_string += bmatrix(label_vector,'v')
+    equation_string += ' & '
+    equation_string += bmatrix(matrix,'b')
+    equation_string += ' & '
     equation_string += '\cdot '
-    equation_string += bmatrix(internal_forces)
+    equation_string += bmatrix(internal_forces,'b')
+    equation_string += ' & '
     equation_string += '='
-    equation_string += bmatrix(rhs)
-    equation_string += '$'
+    equation_string += bmatrix(rhs,'b')
+    equation_string += '\end{matrix}$'
     return equation_string
 
 ###############################################################################
@@ -239,8 +266,11 @@ textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normal
 
 matrix, rhs, internal_forces = update_data(nodes,members,support,f_ext)
 
-
 fig = update_plot(internal_forces,members,nodes)
+
+#                 np.zeros([2*len(nodes),1])
+# for i in np.arange(0,len(label_vecotr)):
+#     label_vector
 
 ###############################################################################
 # OUTPUTS
