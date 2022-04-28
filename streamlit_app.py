@@ -14,6 +14,7 @@ import matplotlib.cm as cm
 
 import plotly.express as px
 import chart_studio.plotly as py
+import plotly.graph_objects as go
 
 import streamlit as st
 from streamlit_plotly_events import plotly_events
@@ -95,36 +96,46 @@ def update_data(nodes,members,support,f_ext):
 
 def update_plot(internal_forces,members,nodes):
 
-    fig, ax = plt.subplots(1)
-    ax.scatter(nodes[:,0],nodes[:,1])
+    fig = go.Figure()
     
-    for n in np.arange(0,len(nodes)):
-        ax.text(nodes[n,0], nodes[n,1], str(n+1), c='red')
+    fig.add_trace(go.Scatter(x=nodes[:,0],y=nodes[:,1],
+                    mode='markers',
+                    text=np.arange(1,len(nodes)+1)))
+    
+    #for n in np.arange(0,len(nodes)):
+        #fig.add_trace(go.Text(nodes[n,0], nodes[n,1], str(n+1), c='red'))
     
     # Make a user-defined colormap.
-    cm1 = mcol.LinearSegmentedColormap.from_list("MyCmapName",["r","r","w","b","b"])
+    #cm1 = mcol.LinearSegmentedColormap.from_list("MyCmapName",["r","r","w","b","b"])
     # Make a normalizer that will map the time values from
     # [start_time,end_time+1] -> [0,1].
-    cnorm = mcol.Normalize(vmin=min(internal_forces),vmax=max(internal_forces))
+    #cnorm = mcol.Normalize(vmin=min(internal_forces),vmax=max(internal_forces))
     # Turn these into an object that can be used to map time values to colors and
     # can be passed to plt.colorbar().
-    cpick = cm.ScalarMappable(norm=cnorm,cmap=cm1)
-    cpick.set_array([])
+    #cpick = cm.ScalarMappable(norm=cnorm,cmap=cm1)
+    #cpick.set_array([])
     
     for m in np.arange(0,len(members)):
         node1 = int(members[m,0]-1)
         node2 = int(members[m,1]-1)
         A = nodes[node1,:]
         B = nodes[node2,:]
-        ax.plot([A[0],B[0]],[A[1],B[1]], c=cpick.to_rgba(internal_forces[m]))
-        ax.text((B[0]+A[0])/2, (A[1]+B[1])/2, str(m+1))
+        fig.add_trace(go.Scatter(
+            x=[A[0],B[0]],
+            y=[A[1],B[1]],
+            #fill='blue',#internal_forces[m],
+            mode="lines",
+            text=np.arange(1,len(members)+1)))
+        #fig.add_trace(go.Text((B[0]+A[0])/2, (A[1]+B[1])/2, str(m+1)))
     
     # Beautify plot
-    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-    ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-    plt.colorbar(cpick,label="force")
+    #ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+    #ax.yaxis.set_major_locator(MaxNLocator(integer=True))
+    #plt.colorbar(cpick,label="force")
     
-    return fig,ax
+    #fig.show()
+    
+    return fig#,ax
 
 ###############################################################################
 # PRINTING OUTPUT
@@ -222,7 +233,7 @@ matrix, rhs, internal_forces = update_data(nodes,members,support,f_ext)
 
 decimals = st.sidebar.number_input(label="precision of print",min_value=0,max_value=5,value=2)
 
-[fig,ax] = update_plot(internal_forces,members,nodes)
+fig = update_plot(internal_forces,members,nodes)
 
 ###############################################################################
 # OUTPUTS
@@ -231,8 +242,8 @@ decimals = st.sidebar.number_input(label="precision of print",min_value=0,max_va
 with st.expander('Look at the Matrix', expanded=True):
     st.markdown(print_equations(matrix, rhs, internal_forces,decimals))
 
-with st.expander('Look at this plot', expanded=False):
+with st.expander('Look at the plot', expanded=False):
     #scatter = py.plot_mpl(fig, filename="my first plotly plot")
-    scatter = px.scatter(nodes[:,0],nodes[:,1])
+    #scatter = px.scatter(nodes[:,0],nodes[:,1])
     selected_points = plotly_events(fig)
     st.write(str(selected_points))
