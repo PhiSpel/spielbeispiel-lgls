@@ -27,6 +27,7 @@ import math
 # CALCULATIONS
 ###############################################################################
 
+# maybe use @st.cache()?
 def update_data(nodes,members,support,f_ext):
 
     n_nodes = len(nodes)
@@ -94,6 +95,12 @@ def update_data(nodes,members,support,f_ext):
     
     return matrix, rhs, internal_forces
 
+def new_member(new_nodes):
+    node1 = new_nodes[0]
+    node2 = new_nodes[1]
+    st.session_state.members = np.append(st.session_state.members,[[node1,node2]],axis=0)
+    return
+
 ###############################################################################
 # PLOTS
 ###############################################################################
@@ -102,12 +109,10 @@ def update_plot(internal_forces,members,nodes,f_ext):
 
     fig = go.Figure()
     
+    # draw nodes
     fig.add_trace(go.Scatter(x=nodes[:,0],y=nodes[:,1],
                     mode='markers',
                     text=np.arange(1,len(nodes)+1)))
-    
-    #for n in np.arange(0,len(nodes)):
-        #fig.add_trace(go.Text(nodes[n,0], nodes[n,1], str(n+1), c='red'))
     
     # Make a user-defined colormap.
     #cm1 = mcol.LinearSegmentedColormap.from_list("MyCmapName",["r","r","w","b","b"])
@@ -142,13 +147,13 @@ def update_plot(internal_forces,members,nodes,f_ext):
             mode="lines"
             ))
         
-    #draw center points to be able to deselect
+    #draw center points to be able to deselect beams
     fig.add_trace(go.Scatter(
         x=centresx,
         y=centresy,
         mode='markers',
         marker=dict(symbol='x')#,
-        #text=np.arange(0,len(members)).astype(str)
+        #text=np.arange(0,len(members)).astype(str)#this text only shows up when hovering
         ))
         
     # calculate coordinates of forces
@@ -170,6 +175,13 @@ def update_plot(internal_forces,members,nodes,f_ext):
     quiver = create_quiver(x0,y0,fx,fy,scale=0.05,line=(dict(color='red')))
     fig.add_traces(data=quiver.data)
         
+    # # draw selected point
+    # if not st.session_state.selected_node == -1:
+    #     sn = st.session_state.selected_node
+    #     fig.add_trace(go.Scatter(x=[nodes[sn,0]],y=[nodes[sn,1]],
+    #                     mode='markers',
+    #                     text='you selected this one'))
+    
     # Beautify plot
     #ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     #ax.yaxis.set_major_locator(MaxNLocator(integer=True))
@@ -242,6 +254,12 @@ def print_equations(matrix, rhs, internal_forces,decimals,textsize):
 
 st.set_page_config(layout="wide")
 
+# setup session_states
+#if 'selected_member' not in st.session_state:
+#    st.session_state.selected_member = []
+if 'selected_nodes' not in st.session_state:
+    st.session_state.selected_nodes = []
+
 st.title("Calculating internal forces of a beam structure")
 
 ###############################################################################
@@ -274,6 +292,23 @@ members_str = st.sidebar.text_input(label = "members", help = "[1st node,2nd nod
 [6,8]''')
 
 exec("members = np.array([" + members_str + "])")
+
+if not 'members' in st.session_state:
+    st.session_state.members = np.array([[1,2],
+        [1,3],
+        [2,3],
+        [3,5],
+        [2,5],
+        [2,4],
+        [4,5],
+        [5,7],
+        [5,6],
+        [6,7],
+        [4,6],
+        [7,8],
+        [6,8]
+        ])
+members = st.session_state.members
 
 support_str = st.sidebar.text_input(label = "support", help = "[node,angle]", value='''[1, 0],
 [1, 90],
@@ -315,8 +350,27 @@ fig = update_plot(internal_forces,members,nodes,f_ext)
 ###############################################################################
 
 with st.expander('Look at the plot', expanded=True):
-    selected_points = plotly_events(fig)
-    st.write("selected point: " + str(selected_points))
+    sn = plotly_events(fig)#, click_event=True)
+    st.write('return value of plotly_events: ' + str(sn))
+    if not sn == []:
+        if sn[0]['curveNumber'] == 0:
+            st.session_state.selected_nodes.append(sn[0]['pointNumber'])
+            st.write('You selected node #'
+                         + str(sn[0]['pointNumber']+1)
+                         + '. Select another one to draw a new beam')
+            st.write('current st.session_state.selected_nodes (actual node inidces, mind you): ' + str(st.session_state.selected_nodes))
+            if len(st.session_state.selected_nodes) == 2:
+                #st.session_state.selected_nodes[1] = sn[0]['pointNumber']
+                #new_member(st.session_state.selected_nodes)
+                st.session_state.selected_nodes = []
+            elif len(st.session_state.selected_nodes) > 2:
+                st.session_state.selected_nodes = []
+            
+                
+                
+        if sn[0]['curveNumber'] == len(members)+1:
+            st.session_state.selected_member[0] = sn[0]['pointNumber']
+
 
 with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
     st.markdown(print_equations(matrix, rhs, internal_forces,decimals,textsize))
