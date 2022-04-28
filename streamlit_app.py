@@ -6,6 +6,7 @@ Created on Wed Apr 27 13:38:24 2022
 """
 
 import numpy as np
+import pandas as pd
 
 import matplotlib.pyplot as plt
 from matplotlib.ticker import MaxNLocator
@@ -119,20 +120,38 @@ def update_plot(internal_forces,members,nodes,f_ext):
     #cpick.set_array([])
     
     # draw beams
+    centresx=[]
+    centresy=[]
     for m in np.arange(0,len(members)):
-        node1 = int(members[m,0]-1)
-        node2 = int(members[m,1]-1)
-        A = nodes[node1,:]
-        B = nodes[node2,:]
+        node1_index = int(members[m,0]-1)
+        node2_index = int(members[m,1]-1)
+        node1_coord = nodes[node1_index,:]
+        node2_coord = nodes[node2_index,:]
+        x=[]
+        y=[]
+        x.append(node1_coord[0])
+        x.append(node2_coord[0])
+        y.append(node1_coord[1])
+        y.append(node2_coord[1])
+        centresx.append((node1_coord[0]+node2_coord[0])/2)
+        centresy.append((node1_coord[1]+node2_coord[1])/2)
         fig.add_trace(go.Scatter(
-            x=[A[0],B[0]],
-            y=[A[1],B[1]],
-            #fill='blue',#internal_forces[m],
-            mode="lines",
-            text=np.arange(1,len(members)+1)))
-        #fig.add_trace(go.Text((B[0]+A[0])/2, (A[1]+B[1])/2, str(m+1)))
+            x=x,
+            y=y,
+            #fill='blue',
+            mode="lines"
+            ))
         
-    # draw forces
+    #draw center points to be able to deselect
+    fig.add_trace(go.Scatter(
+        x=centresx,
+        y=centresy,
+        mode='markers',
+        marker=dict(symbol='x')#,
+        #text=np.arange(0,len(members)).astype(str)
+        ))
+        
+    # calculate coordinates of forces
     x0 = []
     y0 = []
     fx = []
@@ -147,7 +166,7 @@ def update_plot(internal_forces,members,nodes,f_ext):
         fx.append(newtons*np.cos(angle))
         # external force along y
         fy.append(newtons*np.sin(angle))
-        
+    # draw forces  
     quiver = create_quiver(x0,y0,fx,fy,scale=0.05,line=(dict(color='red')))
     fig.add_traces(data=quiver.data)
         
@@ -295,11 +314,9 @@ fig = update_plot(internal_forces,members,nodes,f_ext)
 # OUTPUTS
 ###############################################################################
 
-with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
-    st.markdown(print_equations(matrix, rhs, internal_forces,decimals,textsize))
+#with st.expander('Look at the plot', expanded=False):
+selected_points = plotly_events(fig)
+st.write(str(selected_points))
 
-with st.expander('Look at the plot', expanded=False):
-    #scatter = py.plot_mpl(fig, filename="my first plotly plot")
-    #scatter = px.scatter(nodes[:,0],nodes[:,1])
-    selected_points = plotly_events(fig)
-    st.write(str(selected_points))
+#with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
+st.markdown(print_equations(matrix, rhs, internal_forces,decimals,textsize))
