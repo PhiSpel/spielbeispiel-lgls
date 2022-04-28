@@ -13,7 +13,7 @@ import matplotlib.colors as mcol
 import matplotlib.cm as cm
 
 import plotly.express as px
-import chart_studio.plotly as py
+#import chart_studio.plotly as py
 import plotly.graph_objects as go
 
 import streamlit as st
@@ -154,7 +154,7 @@ def bmatrix(a):
     text += r'\end{bmatrix}'
     return text
 
-def print_equations(matrix, rhs, internal_forces,decimals):
+def print_equations(matrix, rhs, internal_forces,decimals,textsize):
     matrix = np.round(matrix,decimals)
     matrix[matrix==0] = 0
     rhs = np.round(rhs,decimals)
@@ -162,6 +162,7 @@ def print_equations(matrix, rhs, internal_forces,decimals):
     internal_forces = np.round(internal_forces,decimals)
     internal_forces[internal_forces==0] = 0
     equation_string = r'$'
+    equation_string += textsize
     equation_string += bmatrix(matrix)
     equation_string += '\cdot '
     equation_string += bmatrix(internal_forces)
@@ -226,12 +227,18 @@ support[:,1] = np.radians(support[:,1])
 f_ext[:,1] = np.radians(f_ext[:,1])
 
 ###############################################################################
+# SIDEBARS
+###############################################################################
+
+decimals = st.sidebar.number_input(label="precision of print",min_value=0,max_value=5,value=2)
+textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
+
+###############################################################################
 # CALCULATIONS
 ###############################################################################
 
 matrix, rhs, internal_forces = update_data(nodes,members,support,f_ext)
 
-decimals = st.sidebar.number_input(label="precision of print",min_value=0,max_value=5,value=2)
 
 fig = update_plot(internal_forces,members,nodes)
 
@@ -239,8 +246,8 @@ fig = update_plot(internal_forces,members,nodes)
 # OUTPUTS
 ###############################################################################
 
-with st.expander('Look at the Matrix', expanded=True):
-    st.markdown(print_equations(matrix, rhs, internal_forces,decimals))
+with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
+    st.markdown(print_equations(matrix, rhs, internal_forces,decimals,textsize))
 
 with st.expander('Look at the plot', expanded=False):
     #scatter = py.plot_mpl(fig, filename="my first plotly plot")
