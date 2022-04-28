@@ -15,6 +15,7 @@ import matplotlib.cm as cm
 import plotly.express as px
 #import chart_studio.plotly as py
 import plotly.graph_objects as go
+from plotly.figure_factory import create_quiver
 
 import streamlit as st
 from streamlit_plotly_events import plotly_events
@@ -96,7 +97,7 @@ def update_data(nodes,members,support,f_ext):
 # PLOTS
 ###############################################################################
 
-def update_plot(internal_forces,members,nodes):
+def update_plot(internal_forces,members,nodes,f_ext):
 
     fig = go.Figure()
     
@@ -117,6 +118,7 @@ def update_plot(internal_forces,members,nodes):
     #cpick = cm.ScalarMappable(norm=cnorm,cmap=cm1)
     #cpick.set_array([])
     
+    # draw beams
     for m in np.arange(0,len(members)):
         node1 = int(members[m,0]-1)
         node2 = int(members[m,1]-1)
@@ -129,13 +131,30 @@ def update_plot(internal_forces,members,nodes):
             mode="lines",
             text=np.arange(1,len(members)+1)))
         #fig.add_trace(go.Text((B[0]+A[0])/2, (A[1]+B[1])/2, str(m+1)))
-    
+        
+    # draw forces
+    x0 = []
+    y0 = []
+    fx = []
+    fy = []
+    for f in np.arange(0,len(f_ext)):
+        node_index = int(f_ext[f,0]-1)
+        x0.append(nodes[node_index,0])
+        y0.append(nodes[node_index,1])
+        angle = f_ext[f,1]
+        newtons = f_ext[f,2]
+        # external force along x
+        fx.append(newtons*np.cos(angle))
+        # external force along y
+        fy.append(newtons*np.sin(angle))
+        
+    quiver = create_quiver(x0,y0,fx,fy,scale=0.05,line=(dict(color='red')))
+    fig.add_traces(data=quiver.data)
+        
     # Beautify plot
     #ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     #ax.yaxis.set_major_locator(MaxNLocator(integer=True))
     #plt.colorbar(cpick,label="force")
-    
-    #fig.show()
     
     return fig#,ax
 
@@ -266,7 +285,7 @@ textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normal
 
 matrix, rhs, internal_forces = update_data(nodes,members,support,f_ext)
 
-fig = update_plot(internal_forces,members,nodes)
+fig = update_plot(internal_forces,members,nodes,f_ext)
 
 #                 np.zeros([2*len(nodes),1])
 # for i in np.arange(0,len(label_vecotr)):
