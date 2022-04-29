@@ -222,7 +222,7 @@ def bmatrix(a,matrixtype=''):
     
     return text
 
-def print_equations(matrix, rhs, internal_forces,decimals,textsize):
+def print_equations(matrix, rhs, internal_forces,n_beams,n_bcs,decimals,textsize):
     label_vector = [[r' \text{ ' + str(math.floor(x/2)+1) + '}'] for x in np.arange(0,len(rhs))]
     matrix = np.round(matrix,decimals)
     matrix[matrix==0] = 0
@@ -233,7 +233,7 @@ def print_equations(matrix, rhs, internal_forces,decimals,textsize):
     equation_string = r'$'
     equation_string += textsize
     equation_string += r' \begin{matrix} '
-    equation_string += r'\text{nodes} & '
+    equation_string += r'\text{nodes} & \text{' + str(n_beams) + ' beams and ' + str(n_bcs) + ' boundary conditions}'
     #equation_string += bmatrix(label_vector,'h')
     equation_string += r' & \text{internal forces} & \text{external forces}\\'
     equation_string += bmatrix(label_vector,'v')
@@ -349,6 +349,8 @@ fig = update_plot(internal_forces,members,nodes,f_ext)
 # OUTPUTS
 ###############################################################################
 
+st.write('you need to fulfill 2*n_nodes = n_members + n_supports')
+
 with st.expander('Look at the plot', expanded=True):
     sn = plotly_events(fig)#, click_event=True)
     st.write('return value of plotly_events: ' + str(sn))
@@ -373,4 +375,4 @@ with st.expander('Look at the plot', expanded=True):
 
 
 with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
-    st.markdown(print_equations(matrix, rhs, internal_forces,decimals,textsize))
+    st.markdown(print_equations(matrix, rhs, internal_forces,len(members),len(support),decimals,textsize))
