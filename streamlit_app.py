@@ -112,7 +112,9 @@ def update_plot(internal_forces,members,nodes,f_ext):
     # draw nodes
     fig.add_trace(go.Scatter(x=nodes[:,0],y=nodes[:,1],
                     mode='markers',
-                    text=np.arange(1,len(nodes)+1)))
+                    text=np.arange(1,len(nodes)+1),
+                    name='nodes'
+                    ))
     
     # Make a user-defined colormap.
     #cm1 = mcol.LinearSegmentedColormap.from_list("MyCmapName",["r","r","w","b","b"])
@@ -144,7 +146,8 @@ def update_plot(internal_forces,members,nodes,f_ext):
             x=x,
             y=y,
             #fill='blue',
-            mode="lines"
+            mode="lines",
+            name='member #' + str(m+1)
             ))
         
     #draw center points to be able to deselect beams
@@ -152,7 +155,8 @@ def update_plot(internal_forces,members,nodes,f_ext):
         x=centresx,
         y=centresy,
         mode='markers',
-        marker=dict(symbol='x')#,
+        marker=dict(symbol='x'),
+        name='centre points of members for deselection'#,
         #text=np.arange(0,len(members)).astype(str)#this text only shows up when hovering
         ))
         
@@ -172,7 +176,7 @@ def update_plot(internal_forces,members,nodes,f_ext):
         # external force along y
         fy.append(newtons*np.sin(angle))
     # draw forces  
-    quiver = create_quiver(x0,y0,fx,fy,scale=0.05,line=(dict(color='red')))
+    quiver = create_quiver(x0,y0,fx,fy,scale=0.05,line=(dict(color='red')),name='Forces')
     fig.add_traces(data=quiver.data)
         
     # # draw selected point
@@ -349,7 +353,7 @@ fig = update_plot(internal_forces,members,nodes,f_ext)
 # OUTPUTS
 ###############################################################################
 
-st.write('you need to fulfill 2*n_nodes = n_members + n_supports')
+st.write('you need to fulfill 2*n_nodes = n_members + n_supports to get a square matrix')
 
 with st.expander('Look at the plot', expanded=True):
     sn = plotly_events(fig)#, click_event=True)
@@ -360,7 +364,7 @@ with st.expander('Look at the plot', expanded=True):
             st.write('You selected node #'
                          + str(sn[0]['pointNumber']+1)
                          + '. Select another one to draw a new beam')
-            st.write('current st.session_state.selected_nodes (actual node inidces, mind you): ' + str(st.session_state.selected_nodes))
+            st.write('current st.session_state.selected_nodes (actual python inidces, mind you, not the fancy n+1 indices): ' + str(st.session_state.selected_nodes))
             if len(st.session_state.selected_nodes) == 2:
                 #st.session_state.selected_nodes[1] = sn[0]['pointNumber']
                 #new_member(st.session_state.selected_nodes)
