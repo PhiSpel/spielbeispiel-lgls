@@ -196,7 +196,6 @@ def update_plot(internal_forces,members,nodes,f_ext,support):
         fig.add_trace(go.Scatter(
             x=x,
             y=y,
-            #fill='blue',
             mode="lines + markers",
             name='member #' + str(m+1),
             showlegend=False,
@@ -213,27 +212,6 @@ def update_plot(internal_forces,members,nodes,f_ext,support):
                 colorscale="rdbu"
             )
             ))
-    # dummy trace for colorscale
-    # df = px.data.iris()
-    # fig = px.scatter(df, x="sepal_width",
-    #                  y="sepal_length",
-    #                  color="sepal_length",
-    #                  opacity=0,
-    #                  color_continuous_scale='rdbu')
-    # fig.add_trace(go.Scatter(
-    #     x=[0],
-    #     y=[0],
-    #     marker=dict(
-    #         size=16,
-    #         cmax=max_force,
-    #         cmin=-max_force,
-    #         color=0.5,
-    #         colorbar=dict(
-    #             title=""
-    #         ),
-    #         colorscale="rdbu"
-    #     ),
-    #     mode="markers"))
     
     # create a heatmap to be added below
     forcemap = px.imshow([np.linspace(-max_force,max_force,100)],
@@ -299,14 +277,14 @@ def update_plot(internal_forces,members,nodes,f_ext,support):
         node2_coord = nodes[node2_index,:]
         centresx.append((node1_coord[0]+node2_coord[0])/2)
         centresy.append((node1_coord[1]+node2_coord[1])/2)
-        member_names.append(r'deselect member #' + str(m+1) + r'\n current force: ' + str(round(internal_forces[m][0])))
+        member_names.append('deselect member #' + str(m+1) + '; current force: ' + str(round(internal_forces[m][0])))
         
     fig.add_trace(go.Scatter(
         x=centresx,
         y=centresy,
         mode='markers',
         marker=dict(symbol='x',color='orange'),
-        name='centre points of members for deselection',
+        name='members for deselection',
         text=member_names
         ))
         
@@ -389,6 +367,8 @@ st.title("Calculating internal forces of a beam structure")
 # INPUTS
 ###############################################################################
 
+st.sidebar.write('you need to fulfill 2*n_nodes = n_members + n_supports to get a square matrix')
+
 nodes_str = st.sidebar.text_input(label = "nodes", help = "[x-position,y-position]", value='''[0,0],
 [1,1],
 [1,0],
@@ -445,8 +425,6 @@ f_ext_str = st.sidebar.text_input(label = "external forces", help = "[node,angle
 
 exec("f_ext = np.array([" + f_ext_str + "],dtype='f')")
 
-st.write('you need to fulfill 2*n_nodes = n_members + n_supports to get a square matrix')
-
 # convert angles to radians
 support[:,1] = np.radians(support[:,1])
 f_ext[:,1] = np.radians(f_ext[:,1])
@@ -476,10 +454,8 @@ matrix, rhs, internal_forces = update_data(nodes,members,support,f_ext)
 
 with st.expander('Look at the plot', expanded=True):
     sn = plotly_events(fig)#, click_event=True)
-    #st.pyplot(plt.get_cmap('bwr'))
-    #st.plotly_chart(px.colors.sequential.swatches_continuous('rdbu'))
-    st.plotly_chart(forcemap)
-    st.write('return value of plotly_events: ' + str(sn))
+    #st.plotly_chart(forcemap)
+    st.sidebar.write('return value of plotly_events: ' + str(sn))
     if not sn == []:
         if sn[0]['curveNumber'] == len(members)+0:
             st.session_state.selected_nodes.append(sn[0]['pointNumber'])
