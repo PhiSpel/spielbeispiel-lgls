@@ -16,7 +16,12 @@ import matplotlib.cm as cm
 import plotly.express as px
 #import chart_studio.plotly as py
 import plotly.graph_objects as go
+import plotly
+#import plotly.colors.sequential as seq_color
 from plotly.figure_factory import create_quiver
+# Identical to Adam's answer
+import plotly.colors
+from PIL import ImageColor
 
 import streamlit as st
 from streamlit_plotly_events import plotly_events
@@ -105,28 +110,78 @@ def new_member(new_nodes):
 # PLOTS
 ###############################################################################
 
-def update_plot(internal_forces,members,nodes,f_ext):
+def get_continuous_color(colorscale, intermed):
+    """
+    Plotly continuous colorscales assign colors to the range [0, 1]. This function computes the intermediate
+    color for any value in that range.
+
+    Plotly doesn't make the colorscales directly accessible in a common format.
+    Some are ready to use:
+    
+        colorscale = plotly.colors.PLOTLY_SCALES["Greens"]
+
+    Others are just swatches that need to be constructed into a colorscale:
+
+        viridis_colors, scale = plotly.colors.convert_colors_to_same_type(plotly.colors.sequential.Viridis)
+        colorscale = plotly.colors.make_colorscale(viridis_colors, scale=scale)
+
+    :param colorscale: A plotly continuous colorscale defined with RGB string colors.
+    :param intermed: value in the range [0, 1]
+    :return: color in rgb string format
+    :rtype: str
+    """
+    if len(colorscale) < 1:
+        raise ValueError("colorscale must have at least one color")
+
+    hex_to_rgb = lambda c: "rgb" + str(ImageColor.getcolor(c, "RGB"))
+
+    if intermed <= 0 or len(colorscale) == 1:
+        c = colorscale[0][1]
+        return c if c[0] != "#" else hex_to_rgb(c)
+    if intermed >= 1:
+        c = colorscale[-1][1]
+        return c if c[0] != "#" else hex_to_rgb(c)
+
+    for cutoff, color in colorscale:
+        if intermed > cutoff:
+            low_cutoff, low_color = cutoff, color
+        else:
+            high_cutoff, high_color = cutoff, color
+            break
+
+    if (low_color[0] == "#") or (high_color[0] == "#"):
+        # some color scale names (such as cividis) returns:
+        # [[loc1, "hex1"], [loc2, "hex2"], ...]
+        low_color = hex_to_rgb(low_color)
+        high_color = hex_to_rgb(high_color)
+
+    return plotly.colors.find_intermediate_color(
+        lowcolor=low_color,
+        highcolor=high_color,
+        intermed=((intermed - low_cutoff) / (high_cutoff - low_cutoff)),
+        colortype="rgb",
+    )
+
+def update_plot(internal_forces,members,nodes,f_ext,support):
 
     fig = go.Figure()
     
-    # draw nodes
-    fig.add_trace(go.Scatter(x=nodes[:,0],y=nodes[:,1],
-                    mode='markers',
-                    text=np.arange(1,len(nodes)+1)))
-    
-    # Make a user-defined colormap.
-    #cm1 = mcol.LinearSegmentedColormap.from_list("MyCmapName",["r","r","w","b","b"])
-    # Make a normalizer that will map the time values from
-    # [start_time,end_time+1] -> [0,1].
-    #cnorm = mcol.Normalize(vmin=min(internal_forces),vmax=max(internal_forces))
-    # Turn these into an object that can be used to map time values to colors and
-    # can be passed to plt.colorbar().
-    #cpick = cm.ScalarMappable(norm=cnorm,cmap=cm1)
-    #cpick.set_array([])
-    
     # draw beams
-    centresx=[]
-    centresy=[]
+    def get_color(colorscale_name, loc):
+        from _plotly_utils.basevalidators import ColorscaleValidator
+        # first parameter: Name of the property being validated
+        # second parameter: a string, doesn't really matter in our use case
+        cv = ColorscaleValidator("colorscale", "")
+        # colorscale will be a list of lists: [[loc1, "rgb1"], [loc2, "rgb2"], ...] 
+        colorscale = cv.validate_coerce(colorscale_name)
+        
+        if hasattr(loc, "__iter__"):
+            return [get_continuous_color(colorscale, x) for x in loc]
+        return get_continuous_color(colorscale, loc)
+        
+    max_force=max(abs(internal_forces))[0]
+    normed_force = (internal_forces/max_force + 1)/2
+    
     for m in np.arange(0,len(members)):
         node1_index = int(members[m,0]-1)
         node2_index = int(members[m,1]-1)
@@ -138,24 +193,60 @@ def update_plot(internal_forces,members,nodes,f_ext):
         x.append(node2_coord[0])
         y.append(node1_coord[1])
         y.append(node2_coord[1])
-        centresx.append((node1_coord[0]+node2_coord[0])/2)
-        centresy.append((node1_coord[1]+node2_coord[1])/2)
         fig.add_trace(go.Scatter(
             x=x,
             y=y,
             #fill='blue',
-            mode="lines"
+            mode="lines + markers",
+            name='member #' + str(m+1),
+            showlegend=False,
+            line=dict(
+                color=get_color('rdbu',normed_force[m][0])
+                ),
+            marker=dict(
+                cmax=max_force,
+                cmin=-max_force,
+                colorbar=dict(
+                    title="Force intensity",
+                    orientation='h' # this does nothing! :/
+                ),
+                colorscale="rdbu"
+            )
             ))
+    # dummy trace for colorscale
+    # df = px.data.iris()
+    # fig = px.scatter(df, x="sepal_width",
+    #                  y="sepal_length",
+    #                  color="sepal_length",
+    #                  opacity=0,
+    #                  color_continuous_scale='rdbu')
+    # fig.add_trace(go.Scatter(
+    #     x=[0],
+    #     y=[0],
+    #     marker=dict(
+    #         size=16,
+    #         cmax=max_force,
+    #         cmin=-max_force,
+    #         color=0.5,
+    #         colorbar=dict(
+    #             title=""
+    #         ),
+    #         colorscale="rdbu"
+    #     ),
+    #     mode="markers"))
+    
+    # create a heatmap to be added below
+    forcemap = px.imshow([np.linspace(-max_force,max_force,100)],
+                         color_continuous_scale='rdbu')
+    forcemap.layout.coloraxis.showscale = False
         
-    #draw center points to be able to deselect beams
-    fig.add_trace(go.Scatter(
-        x=centresx,
-        y=centresy,
-        mode='markers',
-        marker=dict(symbol='x')#,
-        #text=np.arange(0,len(members)).astype(str)#this text only shows up when hovering
-        ))
-        
+    # draw nodes last, so they can be selected
+    fig.add_trace(go.Scatter(x=nodes[:,0],y=nodes[:,1],
+                    mode='markers',
+                    text=np.arange(1,len(nodes)+1),
+                    name='nodes'
+                    ))
+    
     # calculate coordinates of forces
     x0 = []
     y0 = []
@@ -172,22 +263,54 @@ def update_plot(internal_forces,members,nodes,f_ext):
         # external force along y
         fy.append(newtons*np.sin(angle))
     # draw forces  
-    quiver = create_quiver(x0,y0,fx,fy,scale=0.05,line=(dict(color='red')))
+    quiver = create_quiver(x0,y0,fx,fy,scale=0.05,line=(dict(color='red')),name='Forces')
     fig.add_traces(data=quiver.data)
         
-    # # draw selected point
-    # if not st.session_state.selected_node == -1:
-    #     sn = st.session_state.selected_node
-    #     fig.add_trace(go.Scatter(x=[nodes[sn,0]],y=[nodes[sn,1]],
-    #                     mode='markers',
-    #                     text='you selected this one'))
-    
-    # Beautify plot
-    #ax.xaxis.set_major_locator(MaxNLocator(integer=True))
-    #ax.yaxis.set_major_locator(MaxNLocator(integer=True))
-    #plt.colorbar(cpick,label="force")
-    
-    return fig#,ax
+    # draw supports
+    support_length = -5
+    x0 = []
+    y0 = []
+    sx = []
+    sy = []
+    for s in np.arange(0,len(support)):
+        node_index = int(support[s,0]-1)
+        x0.append(nodes[node_index,0])
+        y0.append(nodes[node_index,1])
+        angle = support[s,1]
+        # external force along x
+        sx.append(support_length*np.cos(angle))
+        # external force along y
+        sy.append(support_length*np.sin(angle))
+    # draw forces  
+    quiver = create_quiver(x0,y0,sx,sy,
+                           scale=0.05,
+                           line=(dict(color='green')),
+                           name='Supports')
+    fig.add_traces(data=quiver.data)
+        
+    #draw center points to be able to deselect beams
+    centresx=[]
+    centresy=[]
+    member_names=[]
+    for m in np.arange(0,len(members)):
+        node1_index = int(members[m,0]-1)
+        node2_index = int(members[m,1]-1)
+        node1_coord = nodes[node1_index,:]
+        node2_coord = nodes[node2_index,:]
+        centresx.append((node1_coord[0]+node2_coord[0])/2)
+        centresy.append((node1_coord[1]+node2_coord[1])/2)
+        member_names.append(r'deselect member #' + str(m+1) + r'\n current force: ' + str(round(internal_forces[m][0])))
+        
+    fig.add_trace(go.Scatter(
+        x=centresx,
+        y=centresy,
+        mode='markers',
+        marker=dict(symbol='x',color='orange'),
+        name='centre points of members for deselection',
+        text=member_names
+        ))
+        
+    return fig,forcemap
 
 ###############################################################################
 # PRINTING OUTPUT
@@ -255,8 +378,8 @@ def print_equations(matrix, rhs, internal_forces,n_beams,n_bcs,decimals,textsize
 st.set_page_config(layout="wide")
 
 # setup session_states
-#if 'selected_member' not in st.session_state:
-#    st.session_state.selected_member = []
+if 'selected_member' not in st.session_state:
+    st.session_state.selected_member = []
 if 'selected_nodes' not in st.session_state:
     st.session_state.selected_nodes = []
 
@@ -322,6 +445,8 @@ f_ext_str = st.sidebar.text_input(label = "external forces", help = "[node,angle
 
 exec("f_ext = np.array([" + f_ext_str + "],dtype='f')")
 
+st.write('you need to fulfill 2*n_nodes = n_members + n_supports to get a square matrix')
+
 # convert angles to radians
 support[:,1] = np.radians(support[:,1])
 f_ext[:,1] = np.radians(f_ext[:,1])
@@ -339,7 +464,7 @@ textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normal
 
 matrix, rhs, internal_forces = update_data(nodes,members,support,f_ext)
 
-fig = update_plot(internal_forces,members,nodes,f_ext)
+[fig,forcemap] = update_plot(internal_forces,members,nodes,f_ext,support)
 
 #                 np.zeros([2*len(nodes),1])
 # for i in np.arange(0,len(label_vecotr)):
@@ -349,18 +474,19 @@ fig = update_plot(internal_forces,members,nodes,f_ext)
 # OUTPUTS
 ###############################################################################
 
-st.write('you need to fulfill 2*n_nodes = n_members + n_supports')
-
 with st.expander('Look at the plot', expanded=True):
     sn = plotly_events(fig)#, click_event=True)
+    #st.pyplot(plt.get_cmap('bwr'))
+    #st.plotly_chart(px.colors.sequential.swatches_continuous('rdbu'))
+    st.plotly_chart(forcemap)
     st.write('return value of plotly_events: ' + str(sn))
     if not sn == []:
-        if sn[0]['curveNumber'] == 0:
+        if sn[0]['curveNumber'] == len(members)+0:
             st.session_state.selected_nodes.append(sn[0]['pointNumber'])
             st.write('You selected node #'
                          + str(sn[0]['pointNumber']+1)
                          + '. Select another one to draw a new beam')
-            st.write('current st.session_state.selected_nodes (actual node inidces, mind you): ' + str(st.session_state.selected_nodes))
+            st.write('current st.session_state.selected_nodes (actual python inidces, mind you, not the fancy n+1 indices): ' + str(st.session_state.selected_nodes))
             if len(st.session_state.selected_nodes) == 2:
                 #st.session_state.selected_nodes[1] = sn[0]['pointNumber']
                 #new_member(st.session_state.selected_nodes)
@@ -371,8 +497,11 @@ with st.expander('Look at the plot', expanded=True):
                 
                 
         if sn[0]['curveNumber'] == len(members)+1:
-            st.session_state.selected_member[0] = sn[0]['pointNumber']
-
+            st.write('You selected a force. Forces can only be set in the sidebar.')
+        if sn[0]['curveNumber'] == len(members)+2:
+            st.write('You selected a support. Supports can only be set in the sidebar.')
+        if sn[0]['curveNumber'] == len(members)+3:
+            st.session_state.selected_member.append(sn[0]['pointNumber'])
 
 with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
     st.markdown(print_equations(matrix, rhs, internal_forces,len(members),len(support),decimals,textsize))
