@@ -237,7 +237,7 @@ def get_continuous_color(colorscale, intermed):
         colortype="rgb",
     )
 
-def update_plot(internal_forces,members,nodes,f_ext,support):
+def update_plot(internal_forces,members,nodes,f_ext,support,onlyviz):
 
     fig = go.Figure()
     
@@ -268,26 +268,38 @@ def update_plot(internal_forces,members,nodes,f_ext,support):
         x.append(node2_coord[0])
         y.append(node1_coord[1])
         y.append(node2_coord[1])
-        fig.add_trace(go.Scatter(
-            x=x,
-            y=y,
-            mode="lines + markers",
-            name='member #' + str(m),
-            showlegend=False,
-            line=dict(
-                color=get_color('rdbu',normed_force[m][0])
-                ),
-            marker=dict(
-                cmax=max_force,
-                cmin=-max_force,
-                colorbar=dict(
-                    title="Force intensity",
-                    orientation='h' # this does nothing! :/
-                ),
-                colorscale="rdbu"
-            )
-            ))
-    
+        if onlyviz:
+            fig.add_trace(go.Scatter(
+                x=x,
+                y=y,
+                mode="lines + markers",
+                name='member #' + str(m),
+                showlegend=False,
+                line=dict(
+                    color='black'
+                    )
+                ))
+        else:
+            fig.add_trace(go.Scatter(
+                x=x,
+                y=y,
+                mode="lines + markers",
+                name='member #' + str(m),
+                showlegend=False,
+                line=dict(
+                    color=get_color('rdbu',normed_force[m][0])
+                    ),
+                marker=dict(
+                    cmax=max_force,
+                    cmin=-max_force,
+                    colorbar=dict(
+                        title="Force intensity",
+                        orientation='h' # this does nothing! :/
+                        ),
+                    colorscale="rdbu"
+                    )
+                ))
+            
     # create a heatmap to be added below
     forcemap = px.imshow([np.linspace(-max_force,max_force,100)],
                          color_continuous_scale='rdbu')
@@ -340,28 +352,29 @@ def update_plot(internal_forces,members,nodes,f_ext,support):
                            line=(dict(color='green')),
                            name='Supports')
     fig.add_traces(data=quiver.data)
-        
-    #draw center points to be able to deselect rods
-    centresx=[]
-    centresy=[]
-    member_names=[]
-    for m in np.arange(0,len(members)):
-        node1_index = int(members[m,0])
-        node2_index = int(members[m,1])
-        node1_coord = nodes[node1_index,:]
-        node2_coord = nodes[node2_index,:]
-        centresx.append((node1_coord[0]+node2_coord[0])/2)
-        centresy.append((node1_coord[1]+node2_coord[1])/2)
-        member_names.append('deselect member #' + str(m+1) + '; current force: ' + str(round(internal_forces[m][0])))
-        
-    fig.add_trace(go.Scatter(
-        x=centresx,
-        y=centresy,
-        mode='markers',
-        marker=dict(symbol='x',color='orange'),
-        name='members for deselection',
-        text=member_names
-        ))
+    
+    if onlyviz:
+        #draw center points to be able to deselect rods
+        centresx=[]
+        centresy=[]
+        member_names=[]
+        for m in np.arange(0,len(members)):
+            node1_index = int(members[m,0])
+            node2_index = int(members[m,1])
+            node1_coord = nodes[node1_index,:]
+            node2_coord = nodes[node2_index,:]
+            centresx.append((node1_coord[0]+node2_coord[0])/2)
+            centresy.append((node1_coord[1]+node2_coord[1])/2)
+            member_names.append('deselect member #' + str(m+1) + '; current force: ' + str(round(internal_forces[m][0])))
+            
+        fig.add_trace(go.Scatter(
+            x=centresx,
+            y=centresy,
+            mode='markers',
+            marker=dict(symbol='x',color='orange'),
+            name='members for deselection',
+            text=member_names
+            ))
         
     return fig,forcemap
 
@@ -568,14 +581,14 @@ if onlyviz:
 
 if onlyviz:
     # calculating
-    [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support)
+    [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support,onlyviz)
 else:
     if issquare:
         state.matrix, state.rhs, state.internal_forces = update_data(all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node)
-        [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support)
+        [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support,onlyviz)
     else:
         st.warning("I am having issues solving your system. Return to visualization only to check whether your system is solvable. If you neet to reset, press 'c' or refresh your browser.")
-        [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support)
+        [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support,onlyviz)
     
 
 ###############################################################################
