@@ -33,9 +33,7 @@ import math
 # TO-DO
 ###############################################################################
 
-# 2. delete unsupported nodes
 # 3. create error-messages
-# 4. switch inputs
 
 ###############################################################################
 # CALCULATIONS
@@ -165,8 +163,12 @@ def update_data(nodes,members,support,f_ext,debug,beams_per_node):
 def new_member(new_nodes):
     node1 = new_nodes[0]
     node2 = new_nodes[1]
-    state.members = np.append(state.members,[[node1,node2]],axis=0)
+    state.new_members = np.append(state.new_members,[[node1,node2]],axis=0)
     return
+
+def update_members(new_members,removed_members):
+    state.members = np.delete(state.members,removed_members)
+    state.members = np.append(state.members,new_members,0)
 
 ###############################################################################
 # PLOTS
@@ -386,54 +388,43 @@ def bmatrix(a,matrixtype=''):
     return text
 
 def print_equations(matrix, rhs, internal_forces,n_beams,n_bcs,decimals,textsize):
+    label_vector = []
+    k=0
+    for node in connected_nodes:
+        label_vector.append([r' \text{' + str(node)])
+        label_vector[k][0] += 'x'
+        label_vector[k][0] += '}'
+        k+=1
+        label_vector.append([r' \text{' + str(node)])
+        label_vector[k][0] += 'y'
+        label_vector[k][0] += '}'
+        k+=1
+    label_vector=np.array(label_vector)
+    matrix = np.round(matrix,decimals)
+    matrix[matrix==0] = 0
+    rhs = np.round(rhs,decimals)
+    rhs[rhs==0] = 0
+    internal_forces = np.round(internal_forces,decimals)
+    internal_forces[internal_forces==0] = 0
+    equation_string = r'$'
+    equation_string += textsize
+    equation_string += r' \begin{matrix} '
+    equation_string += r'\text{nodes} & \text{' + str(n_beams) + ' beams and ' + str(n_bcs) + ' boundary conditions}'
+    #equation_string += bmatrix(label_vector,'h')
+    equation_string += r' & \text{internal forces} & \text{external forces}\\'
+    equation_string += bmatrix(label_vector,'v')
+    equation_string += ' & '
+    equation_string += bmatrix(matrix,'b')
+    equation_string += ' & '
+    equation_string += '\cdot '
     if not internal_forces == []:
-        label_vector = [[r' \text{ ' + str(math.floor(x/2)) + ('x' if ((x%2)==0) else 'y') + '}'] for x in np.arange(0,len(rhs))]
-        matrix = np.round(matrix,decimals)
-        matrix[matrix==0] = 0
-        rhs = np.round(rhs,decimals)
-        rhs[rhs==0] = 0
-        internal_forces = np.round(internal_forces,decimals)
-        internal_forces[internal_forces==0] = 0
-        equation_string = r'$'
-        equation_string += textsize
-        equation_string += r' \begin{matrix} '
-        equation_string += r'\text{nodes} & \text{' + str(n_beams) + ' beams and ' + str(n_bcs) + ' boundary conditions}'
-        #equation_string += bmatrix(label_vector,'h')
-        equation_string += r' & \text{internal forces} & \text{external forces}\\'
-        equation_string += bmatrix(label_vector,'v')
-        equation_string += ' & '
-        equation_string += bmatrix(matrix,'b')
-        equation_string += ' & '
-        equation_string += '\cdot '
         equation_string += bmatrix(internal_forces,'b')
-        equation_string += ' & '
-        equation_string += '='
-        equation_string += bmatrix(rhs,'b')
-        equation_string += '\end{matrix}$'
     else:
-        label_vector = [[r' \text{ ' + str(math.floor(x/2)) + '}'] for x in np.arange(0,len(rhs))]
-        matrix = np.round(matrix,decimals)
-        matrix[matrix==0] = 0
-        rhs = np.round(rhs,decimals)
-        rhs[rhs==0] = 0
-        internal_forces = np.round(internal_forces,decimals)
-        internal_forces[internal_forces==0] = 0
-        equation_string = r'$'
-        equation_string += textsize
-        equation_string += r' \begin{matrix} '
-        equation_string += r'\text{nodes} & \text{' + str(n_beams) + ' beams and ' + str(n_bcs) + ' boundary conditions}'
-        #equation_string += bmatrix(label_vector,'h')
-        equation_string += r' & \text{internal forces} & \text{external forces}\\'
-        equation_string += bmatrix(label_vector,'v')
-        equation_string += ' & '
-        equation_string += bmatrix(matrix,'b')
-        equation_string += ' & '
-        equation_string += '\cdot '
         equation_string += '?'#bmatrix(internal_forces,'b')
-        equation_string += ' & '
-        equation_string += '='
-        equation_string += bmatrix(rhs,'b')
-        equation_string += '\end{matrix}$'
+    equation_string += ' & '
+    equation_string += '='
+    equation_string += bmatrix(rhs,'b')
+    equation_string += '\end{matrix}$'
     return equation_string
 
 ###############################################################################
@@ -547,7 +538,11 @@ with col1:
     onlyviz = st.checkbox("Visualization only. Choose this to be able to change the structure. When you deselect, your changes will be applied.")
 
 with col2:
-    st.markdown(r'You chose to remove members #' + str(state.removed_members) + r'''\n You chose to add members on ''' + str(state.new_members))
+    if onlyviz:
+        st.markdown(r'You chose to remove members #' + str(state.removed_members) + r'''\n You chose to add members on ''' + str(state.new_members))
+        apply_changes = st.checkbox('Apply changes')
+        if apply_changes:
+            update_members(state.removed_members,state.new_members)
 
 ###############################################################################
 # CALCULATIONS
@@ -587,31 +582,30 @@ else:
 
 with st.expander('Look at the plot', expanded=True):
     if onlyviz:
-        sn = plotly_events(fig)#, click_event=True)
+        sn = plotly_events(fig)
+        st.write('return value of plotly_events: ' + str(sn))
+        if not sn == []:
+            if sn[0]['curveNumber'] == len(state.members)+0:
+                state.selected_nodes.append(sn[0]['pointNumber'])
+                st.write('You selected node #'
+                             + str(sn[0]['pointNumber'])
+                             + '. Select another one to draw a new beam')
+                st.write('current state.selected_nodes: ' + str(state.selected_nodes))
+                if len(state.selected_nodes) == 2:
+                    #state.selected_nodes[1] = sn[0]['pointNumber']
+                    new_member(state.selected_nodes)
+                    state.selected_nodes = []
+                elif len(state.selected_nodes) > 2:
+                    state.selected_nodes = []
+                
+            if sn[0]['curveNumber'] == len(state.members)+1:
+                st.write('You selected a force. Forces can only be set in the sidebar.')
+            if sn[0]['curveNumber'] == len(state.members)+2:
+                st.write('You selected a support. Supports can only be set in the sidebar.')
+            if sn[0]['curveNumber'] == len(state.members)+3:
+                state.removed_members.append(sn[0]['pointNumber'])
     else:
         st.plotly_chart(fig)
-    #st.plotly_chart(forcemap)
-    st.write('return value of plotly_events: ' + str(sn))
-    if not sn == []:
-        if sn[0]['curveNumber'] == len(state.members)+0:
-            state.selected_nodes.append(sn[0]['pointNumber'])
-            st.write('You selected node #'
-                         + str(sn[0]['pointNumber'])
-                         + '. Select another one to draw a new beam')
-            st.write('current state.selected_nodes: ' + str(state.selected_nodes))
-            if len(state.selected_nodes) == 2:
-                #state.selected_nodes[1] = sn[0]['pointNumber']
-                new_member(state.selected_nodes)
-                state.selected_nodes = []
-            elif len(state.selected_nodes) > 2:
-                state.selected_nodes = []
-            
-        if sn[0]['curveNumber'] == len(state.members)+1:
-            st.write('You selected a force. Forces can only be set in the sidebar.')
-        if sn[0]['curveNumber'] == len(state.members)+2:
-            st.write('You selected a support. Supports can only be set in the sidebar.')
-        if sn[0]['curveNumber'] == len(state.members)+3:
-            state.removed_members.append(sn[0]['pointNumber'])
 
 with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
     st.markdown(print_equations(state.matrix, state.rhs, state.internal_forces,len(state.members),len(state.support),decimals,textsize))
