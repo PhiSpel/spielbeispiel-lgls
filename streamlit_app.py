@@ -48,31 +48,31 @@ def check_data(nodes,members,support,f_ext):
     support_range = np.arange(0,nsupport)
     nf_ext = len(f_ext)
     force_range = np.arange(0,nf_ext)
-    beams_per_node = np.zeros(len(nodes))
+    rods_per_node = np.zeros(len(nodes))
     for m in members_range:
         node1 = members[m,0]
         node2 = members[m,1]
-        beams_per_node[node1] += 1
-        beams_per_node[node2] += 1
+        rods_per_node[node1] += 1
+        rods_per_node[node2] += 1
     for s in support_range:
         inode = int(support[s,0])
-        beams_per_node[inode] += 1
+        rods_per_node[inode] += 1
     for f in force_range:
         inode = int(f_ext[f,0])
-        beams_per_node[inode] += 1
+        rods_per_node[inode] += 1
     deletenodes = []
     for inode in nodes_range:
-        if beams_per_node[inode] <= 1:
+        if rods_per_node[inode] <= 1:
             deletenodes.append(inode)
     connected_nodes=np.delete(nodes,deletenodes,0)
     
     issquare = 2*len(connected_nodes) == (len(state.members) + len(state.support))
     all_good = issquare & (n_nodes > 0)
     
-    return beams_per_node, connected_nodes, all_good, issquare
+    return rods_per_node, connected_nodes, all_good, issquare
 
 # maybe use @st.cache()?
-def update_data(nodes,members,support,f_ext,debug,beams_per_node):
+def update_data(nodes,members,support,f_ext,debug,rods_per_node):
     
     n_members = len(members)
     members_range = np.arange(0,n_members)
@@ -139,7 +139,7 @@ def update_data(nodes,members,support,f_ext,debug,beams_per_node):
     deleterows = []
     for inode in nodes_range: #number of the node we are talking about
         k = 2*inode
-        if beams_per_node[inode] == 0:
+        if rods_per_node[inode] == 0:
             deleterows.append(k)
             deleterows.append(k+1)
     # if debug:
@@ -163,12 +163,19 @@ def update_data(nodes,members,support,f_ext,debug,beams_per_node):
 def new_member(new_nodes):
     node1 = new_nodes[0]
     node2 = new_nodes[1]
-    state.new_members = np.append(state.new_members,[[node1,node2]],axis=0)
+    if state.new_members == [[]]:
+        state.new_members = [[node1,node2]]
+    else:
+        state.new_members = np.append(state.new_members,[[node1,node2]],axis=0)
     return
 
-def update_members(new_members,removed_members):
-    state.members = np.delete(state.members,removed_members)
-    state.members = np.append(state.members,new_members,0)
+def update_members(removed_members,new_members):
+    if not ((new_members == [[]]) & (removed_members == [])):
+        state.members = np.delete(state.members,removed_members,axis=0)
+        state.members = np.append(state.members,new_members,axis=0)
+        state.new_members = [[]]
+        state.removed_members = []
+    return
 
 ###############################################################################
 # PLOTS
@@ -230,7 +237,7 @@ def update_plot(internal_forces,members,nodes,f_ext,support):
 
     fig = go.Figure()
     
-    # draw beams
+    # draw rods
     def get_color(colorscale_name, loc):
         from _plotly_utils.basevalidators import ColorscaleValidator
         # first parameter: Name of the property being validated
@@ -330,7 +337,7 @@ def update_plot(internal_forces,members,nodes,f_ext,support):
                            name='Supports')
     fig.add_traces(data=quiver.data)
         
-    #draw center points to be able to deselect beams
+    #draw center points to be able to deselect rods
     centresx=[]
     centresy=[]
     member_names=[]
@@ -387,7 +394,7 @@ def bmatrix(a,matrixtype=''):
     
     return text
 
-def print_equations(matrix, rhs, internal_forces,n_beams,n_bcs,decimals,textsize):
+def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize):
     label_vector = []
     k=0
     for node in connected_nodes:
@@ -409,7 +416,7 @@ def print_equations(matrix, rhs, internal_forces,n_beams,n_bcs,decimals,textsize
     equation_string = r'$'
     equation_string += textsize
     equation_string += r' \begin{matrix} '
-    equation_string += r'\text{nodes} & \text{' + str(n_beams) + ' beams and ' + str(n_bcs) + ' boundary conditions}'
+    equation_string += r'\text{nodes} & \text{' + str(n_rods) + ' rods and ' + str(n_bcs) + ' boundary conditions}'
     #equation_string += bmatrix(label_vector,'h')
     equation_string += r' & \text{internal forces} & \text{external forces}\\'
     equation_string += bmatrix(label_vector,'v')
@@ -437,11 +444,11 @@ st.set_page_config(layout="wide")
 if 'removed_members' not in state:
     state.removed_members = []
 if 'new_members' not in state:
-    state.new_members = []
+    state.new_members = [[]]
 if 'selected_nodes' not in state:
     state.selected_nodes = []
 
-st.title("Calculating internal forces of a beam structure")
+st.title("Internal forces of a rod structure")
 
 ###############################################################################
 # INPUTS
@@ -532,36 +539,70 @@ debug = st.sidebar.checkbox(label="show debugging stuff")
 # VISUAL VS CALCULATED
 ###############################################################################
 
-[col1,col2] = st.columns(2)
+[col1,col2] = st.columns([4,1])
 
 with col1:
-    onlyviz = st.checkbox("Visualization only. Choose this to be able to change the structure. When you deselect, your changes will be applied.")
+    onlyviz = st.checkbox("Visualization only. Choose this to be able to change the structure.")
 
 with col2:
     if onlyviz:
-        st.markdown(r'You chose to remove members #' + str(state.removed_members) + r'''\n You chose to add members on ''' + str(state.new_members))
-        apply_changes = st.checkbox('Apply changes')
-        if apply_changes:
-            update_members(state.removed_members,state.new_members)
+        apply_changes = st.button('Apply changes',on_click=update_members(state.removed_members,state.new_members))
+        # if apply_changes:
+        #     update_members(state.removed_members,state.new_members)
+            
+if onlyviz:
+    st.write('Mind the admonitions below the plot on requirements to the rod system.')
 
 ###############################################################################
 # CALCULATIONS
 ###############################################################################
 
-[beams_per_node, connected_nodes, all_good, issquare] = check_data(all_nodes,state.members,state.support,state.f_ext)
+[rods_per_node, connected_nodes, all_good, issquare] = check_data(all_nodes,state.members,state.support,state.f_ext)
 
 if not onlyviz:
     if all_good:
-        for i in state.removed_members:
-            del state.members[i]
-        for inodes in state.new_members:
-            state.members.append(inodes)
-        state.matrix, state.rhs, state.internal_forces = update_data(all_nodes,state.members,state.support,state.f_ext,debug,beams_per_node)
+        state.matrix, state.rhs, state.internal_forces = update_data(all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node)
         [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support)
     else:
-        st.warning('Return to visualization only to check whether your system is solvable.')
+        st.warning("I am having issues solving your system. Return to visualization only to check whether your system is solvable. If you neet to reset, press 'c' or refresh your browser.")
         [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support)
 else:
+    # calculating
+    [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support)
+
+###############################################################################
+# OUTPUTS
+###############################################################################
+
+if onlyviz:
+    with st.expander('Look at the plot', expanded=True):
+        sn = plotly_events(fig)
+        if debug:
+            st.write('return value of plotly_events: ' + str(sn))
+        if not sn == []:
+            if sn[0]['curveNumber'] == len(state.members)+0:
+                state.selected_nodes.append(sn[0]['pointNumber'])
+                if len(state.selected_nodes) == 1:
+                    st.write('You selected node #'
+                             + str(sn[0]['pointNumber'])
+                             + '. Select another one to draw a new rod')
+                nodes_string = 'Current storage in state.selected_nodes: ' + str(state.selected_nodes)
+                if len(state.selected_nodes) == 2:
+                    #state.selected_nodes[1] = sn[0]['pointNumber']
+                    new_member(state.selected_nodes)
+                    state.selected_nodes = []
+                    nodes_string += '. Wrote nodes to state.new_members.'
+                elif len(state.selected_nodes) > 2:
+                    state.selected_nodes = []
+                    nodes_string += '. Must be a bug. Cleared selected nodes.'
+                st.write(nodes_string)
+                
+            if sn[0]['curveNumber'] == len(state.members)+1:
+                st.write('You selected a force. Forces can only be set in the sidebar.')
+            if sn[0]['curveNumber'] == len(state.members)+2:
+                st.write('You selected a support. Supports can only be set in the sidebar.')
+            if sn[0]['curveNumber'] == len(state.members)+3:
+                state.removed_members.append(sn[0]['pointNumber'])
     # checking if we will get a square matrix
     status_string = r'''You need to fulfill $$ 2 \cdot n_\text{nodes} = n_\text{members} + n_\text{supports} $$ to get a square matrix. '''
     status_string += 'You have ' + str(len(connected_nodes)) + ' nodes, ' + str(len(state.members)) + ' members and ' + str(len(state.support)) + ' supports. '
@@ -573,39 +614,9 @@ else:
         else:
             status_string += 'You need to add more nodes.'
     st.write(status_string)
-    # calculating
-    [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support)
-
-###############################################################################
-# OUTPUTS
-###############################################################################
-
-with st.expander('Look at the plot', expanded=True):
-    if onlyviz:
-        sn = plotly_events(fig)
-        st.write('return value of plotly_events: ' + str(sn))
-        if not sn == []:
-            if sn[0]['curveNumber'] == len(state.members)+0:
-                state.selected_nodes.append(sn[0]['pointNumber'])
-                st.write('You selected node #'
-                             + str(sn[0]['pointNumber'])
-                             + '. Select another one to draw a new beam')
-                st.write('current state.selected_nodes: ' + str(state.selected_nodes))
-                if len(state.selected_nodes) == 2:
-                    #state.selected_nodes[1] = sn[0]['pointNumber']
-                    new_member(state.selected_nodes)
-                    state.selected_nodes = []
-                elif len(state.selected_nodes) > 2:
-                    state.selected_nodes = []
-                
-            if sn[0]['curveNumber'] == len(state.members)+1:
-                st.write('You selected a force. Forces can only be set in the sidebar.')
-            if sn[0]['curveNumber'] == len(state.members)+2:
-                st.write('You selected a support. Supports can only be set in the sidebar.')
-            if sn[0]['curveNumber'] == len(state.members)+3:
-                state.removed_members.append(sn[0]['pointNumber'])
-    else:
-        st.plotly_chart(fig)
+    st.markdown(r'You chose to remove members #' + str(state.removed_members) + r''' You chose to add members on ''' + str(state.new_members))
+else:
+    st.plotly_chart(fig)
 
 with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
     st.markdown(print_equations(state.matrix, state.rhs, state.internal_forces,len(state.members),len(state.support),decimals,textsize))
