@@ -6,12 +6,12 @@ Created on Wed Apr 27 13:38:24 2022
 """
 
 import numpy as np
-import pandas as pd
+# import pandas as pd
 
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MaxNLocator
-import matplotlib.colors as mcol
-import matplotlib.cm as cm
+# import matplotlib.pyplot as plt
+# from matplotlib.ticker import MaxNLocator
+# import matplotlib.colors as mcol
+# import matplotlib.cm as cm
 
 import plotly.express as px
 #import chart_studio.plotly as py
@@ -27,7 +27,7 @@ import streamlit as st
 from streamlit import session_state as state
 from streamlit_plotly_events import plotly_events
 
-import math
+# import math
 
 ###############################################################################
 # TO-DO
@@ -62,14 +62,16 @@ def check_data(nodes,members,support,f_ext):
         rods_per_node[inode] += 1
     deletenodes = []
     for inode in nodes_range:
-        if rods_per_node[inode] <= 1:
+        if rods_per_node[inode] < 2:
             deletenodes.append(inode)
     connected_nodes=np.delete(nodes,deletenodes,0)
+    for f in force_range:
+        if int(f_ext[f,0]) not in connected_nodes:
+            forces_connected = False
     
     issquare = 2*len(connected_nodes) == (len(state.members) + len(state.support))
-    all_good = issquare & (n_nodes > 0)
     
-    return rods_per_node, connected_nodes, all_good, issquare
+    return rods_per_node, connected_nodes, issquare, forces_connected
 
 # maybe use @st.cache()?
 def update_data(nodes,members,support,f_ext,debug,rods_per_node):
@@ -139,7 +141,7 @@ def update_data(nodes,members,support,f_ext,debug,rods_per_node):
     deleterows = []
     for inode in nodes_range: #number of the node we are talking about
         k = 2*inode
-        if rods_per_node[inode] == 0:
+        if rods_per_node[inode] <= 1:
             deleterows.append(k)
             deleterows.append(k+1)
     # if debug:
@@ -531,10 +533,13 @@ if 'rhs' not in state:
 # SIDEBARS
 ###############################################################################
 
-decimals = st.sidebar.number_input(label="precision of print",min_value=0,max_value=5,value=2)
-textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
-debug = st.sidebar.checkbox(label="show debugging stuff")
-
+debug = st.sidebar.checkbox(label="show development stuff")
+if debug:
+    decimals = st.sidebar.number_input(label="precision of print",min_value=0,max_value=5,value=2)
+    textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
+else:
+    decimals = 2
+    textsize = r'\scriptsize'
 ###############################################################################
 # VISUAL VS CALCULATED
 ###############################################################################
@@ -546,9 +551,9 @@ with col1:
 
 with col2:
     if onlyviz:
-        apply_changes = st.button('Apply changes',on_click=update_members(state.removed_members,state.new_members))
-        # if apply_changes:
-        #     update_members(state.removed_members,state.new_members)
+        apply_changes = st.button('Apply changes')#,on_click=update_members(state.removed_members,state.new_members))
+        if apply_changes:
+            update_members(state.removed_members,state.new_members)
             
 if onlyviz:
     st.write('Mind the admonitions below the plot on requirements to the rod system.')
@@ -557,18 +562,19 @@ if onlyviz:
 # CALCULATIONS
 ###############################################################################
 
-[rods_per_node, connected_nodes, all_good, issquare] = check_data(all_nodes,state.members,state.support,state.f_ext)
+[rods_per_node, connected_nodes, issquare, forces_connected] = check_data(all_nodes,state.members,state.support,state.f_ext)
 
-if not onlyviz:
-    if all_good:
+if onlyviz:
+    # calculating
+    [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support)
+else:
+    if issquare:
         state.matrix, state.rhs, state.internal_forces = update_data(all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node)
         [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support)
     else:
         st.warning("I am having issues solving your system. Return to visualization only to check whether your system is solvable. If you neet to reset, press 'c' or refresh your browser.")
         [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support)
-else:
-    # calculating
-    [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support)
+    
 
 ###############################################################################
 # OUTPUTS
@@ -588,10 +594,12 @@ if onlyviz:
                              + '. Select another one to draw a new rod')
                 nodes_string = 'Current storage in state.selected_nodes: ' + str(state.selected_nodes)
                 if len(state.selected_nodes) == 2:
-                    #state.selected_nodes[1] = sn[0]['pointNumber']
-                    new_member(state.selected_nodes)
+                    if state.selected_nodes[1] == state.selected_nodes[0]:
+                        nodes_string += '. Will not write to state.new_members, b/c you selected the same node twice.'
+                    else:
+                        new_member(state.selected_nodes)
+                        nodes_string += '. Wrote nodes to state.new_members.'
                     state.selected_nodes = []
-                    nodes_string += '. Wrote nodes to state.new_members.'
                 elif len(state.selected_nodes) > 2:
                     state.selected_nodes = []
                     nodes_string += '. Must be a bug. Cleared selected nodes.'
@@ -604,6 +612,8 @@ if onlyviz:
             if sn[0]['curveNumber'] == len(state.members)+3:
                 state.removed_members.append(sn[0]['pointNumber'])
     # checking if we will get a square matrix
+    if not forces_connected:
+        st.warning('Not all forces are connected. You may solve the system anyway.')
     status_string = r'''You need to fulfill $$ 2 \cdot n_\text{nodes} = n_\text{members} + n_\text{supports} $$ to get a square matrix. '''
     status_string += 'You have ' + str(len(connected_nodes)) + ' nodes, ' + str(len(state.members)) + ' members and ' + str(len(state.support)) + ' supports. '
     if issquare:
