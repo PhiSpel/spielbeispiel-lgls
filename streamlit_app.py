@@ -586,7 +586,10 @@ else:
 ###############################################################################
 
 with st.expander('Look at the plot', expanded=True):
-    sn = plotly_events(fig)#, click_event=True)
+    if onlyviz:
+        sn = plotly_events(fig)#, click_event=True)
+    else:
+        st.plotly(fig)
     #st.plotly_chart(forcemap)
     st.write('return value of plotly_events: ' + str(sn))
     if not sn == []:
