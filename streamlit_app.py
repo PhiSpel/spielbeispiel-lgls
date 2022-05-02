@@ -479,7 +479,7 @@ if 'selected_nodes' not in state:
 st.title("Internal forces of a rod structure")
 
 ###############################################################################
-# INPUTS
+# SIDEBARS
 ###############################################################################
 
 l = 5#st.sidebar.number_input(label='length of plot',min_value=2,max_value=10,value=5)
@@ -513,28 +513,44 @@ if onlyviz:
     apply_changes = st.sidebar.button('Apply changes')#,on_click=update_members(state.removed_members,state.new_members))
     if apply_changes:
         update_members(state.removed_members,state.new_members)
+        
+debug = st.sidebar.checkbox(label="show development stuff")
 
-support_str = st.sidebar.text_input(label = "support", help = "[node,angle]", 
-                                    value='''[0, 0],[0, 90],[20, 90]''')
+if debug:
+    st.sidebar.warning("Supports and external forces are in development.")
 
-if 'support' not in state: 
-    exec("state.support = np.array([" + support_str + "],dtype='f')")
-    state.support[:,1] = np.radians(state.support[:,1])
-# else:
-#     exec("state.support = np.array([" + support_str + "],dtype='f')")
-
-f_ext_str = st.sidebar.text_input(label = "external forces", help = "[node,angle,force]", value='''[5,-90,10],[12,180,10],[15,-90,15]''')
-
-if 'f_ext' not in state: 
-    exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
-    state.f_ext[:,1] = np.radians(state.f_ext[:,1])
-# else:
-#     exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
+    support_str = st.sidebar.text_input(label = "support", help = "[node,angle]", 
+                                        value='''[0, 0],[0, 90],[20, 90]''')
+    
+    if 'support' not in state: 
+        exec("state.support = np.array([" + support_str + "],dtype='f')")
+        state.support[:,1] = np.radians(state.support[:,1])
+    # else:
+    #     exec("state.support = np.array([" + support_str + "],dtype='f')")
+    
+        f_ext_str = st.sidebar.text_input(label = "external forces", help = "[node,angle,force]", value='''[5,-90,10],[12,180,10],[15,-90,15]''')
+        
+    if 'f_ext' not in state: 
+        exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
+        state.f_ext[:,1] = np.radians(state.f_ext[:,1])
+    # else:
+    #     exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
    
-st.sidebar.write('members: ' + str(state.members))
-#st.sidebar.write('nodes: ' + str(all_nodes))
-#st.sidebar.write('support: ' + str(state.support.round()))
-#st.sidebar.write('f_ext: ' + str(state.f_ext.round()))
+    st.sidebar.write('members: ' + str(state.members))
+    #st.sidebar.write('nodes: ' + str(all_nodes))
+    #st.sidebar.write('support: ' + str(state.support.round()))
+    #st.sidebar.write('f_ext: ' + str(state.f_ext.round()))
+else:
+    if 'support' not in state:
+        state.support = np.array([
+            [0, 0],[0, 90],[20, 90]
+            ],dtype='f')
+        state.support[:,1] = np.radians(state.support[:,1])
+    if 'f_ext' not in state:
+        state.f_ext = np.array([
+            [5,-90,10],[12,180,10],[15,-90,15]
+            ],dtype='f')
+        state.f_ext[:,1] = np.radians(state.f_ext[:,1])
 
 if 'internal_forces' not in state:
     state.internal_forces = []
@@ -543,11 +559,6 @@ if 'matrix' not in state:
 if 'rhs' not in state:
     state.rhs = []
 
-###############################################################################
-# SIDEBARS
-###############################################################################
-
-debug = st.sidebar.checkbox(label="show development stuff")
 if debug:
     decimals = st.sidebar.number_input(label="precision of print",min_value=0,max_value=5,value=2)
     textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
@@ -590,6 +601,7 @@ if onlyviz:
         if debug:
             st.write('return value of plotly_events: ' + str(sn))
         if not sn == []:
+            
             if sn[0]['curveNumber'] == len(state.members)+0:
                 state.selected_nodes.append(sn[0]['pointNumber'])
                 if len(state.selected_nodes) == 1:
@@ -611,10 +623,13 @@ if onlyviz:
                 
             if sn[0]['curveNumber'] == len(state.members)+1:
                 st.write('You selected a force. Forces can only be set in the sidebar.')
+                
             if sn[0]['curveNumber'] == len(state.members)+2:
                 st.write('You selected a support. Supports can only be set in the sidebar.')
+                
             if sn[0]['curveNumber'] == len(state.members)+3:
                 state.removed_members.append(sn[0]['pointNumber'])
+                
     # checking if we will get a square matrix
     if forces_connected == False:
         st.warning('Not all forces are connected. You may solve the system anyway.')
