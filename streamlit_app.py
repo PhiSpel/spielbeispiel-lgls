@@ -65,8 +65,10 @@ def check_data(nodes,members,support,f_ext):
         if rods_per_node[inode] < 2:
             deletenodes.append(inode)
     connected_nodes=np.delete(nodes,deletenodes,0)
+    #st.write(str(connected_nodes))
+    forces_connected = True
     for f in force_range:
-        if int(f_ext[f,0]) not in connected_nodes:
+        if int(f_ext[f,0]) in deletenodes:
             forces_connected = False
     
     issquare = 2*len(connected_nodes) == (len(state.members) + len(state.support))
@@ -547,7 +549,7 @@ else:
 [col1,col2] = st.columns([4,1])
 
 with col1:
-    onlyviz = st.checkbox("Visualization only. Choose this to be able to change the structure.")
+    onlyviz = st.checkbox("Visualization only. Choose this to be able to change the structure. Deselect to update the calculations.")
 
 with col2:
     if onlyviz:
