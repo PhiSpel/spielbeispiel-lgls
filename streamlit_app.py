@@ -612,7 +612,7 @@ if onlyviz:
             if sn[0]['curveNumber'] == len(state.members)+3:
                 state.removed_members.append(sn[0]['pointNumber'])
     # checking if we will get a square matrix
-    if not forces_connected:
+    if forces_connected == False:
         st.warning('Not all forces are connected. You may solve the system anyway.')
     status_string = r'''You need to fulfill $$ 2 \cdot n_\text{nodes} = n_\text{members} + n_\text{supports} $$ to get a square matrix. '''
     status_string += 'You have ' + str(len(connected_nodes)) + ' nodes, ' + str(len(state.members)) + ' members and ' + str(len(state.support)) + ' supports. '
