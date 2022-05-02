@@ -27,7 +27,7 @@ import streamlit as st
 from streamlit import session_state as state
 from streamlit_plotly_events import plotly_events
 
-# import math
+import math
 
 ###############################################################################
 # TO-DO
@@ -121,10 +121,12 @@ def update_data(nodes,members,support,f_ext,debug,rods_per_node):
     # add support forces to matrix
     if debug:
         st.write('supports: ' + str(support))
-    matrix = np.append(matrix, np.zeros([len(matrix),3]),axis = 1)
+    matrix = np.append(matrix, np.zeros([len(matrix),len(support)]),axis = 1)
     for s in support_range:
         inode = int(support[s,0])
         angle = support[s,1]
+        if debug:
+            st.write('writing support #' + str(s) + ' at node #' + str(inode) + ' to matrix')
         matrix[2*inode,n_members+s] = np.cos(angle) # forces along x
         matrix[2*inode+1,n_members+s] = np.sin(angle) # forces along y
         
@@ -173,12 +175,57 @@ def new_member(new_nodes):
         state.new_members = np.append(state.new_members,[[node1,node2]],axis=0)
     return
 
-def update_members(removed_members,new_members):
-    if not ((new_members == [[]]) & (removed_members == [])):
+def new_force_input():
+    if not state.new_f_ext_str == '':
+        new_f_ext_list = string_to_list(state.new_f_ext_str)
+        new_f_ext_list[1] = math.radians(new_f_ext_list[1])
+        if state.new_f_ext == [[]]:
+            state.new_f_ext = [new_f_ext_list]
+        else:
+            np.append(state.new_f_ext,[new_f_ext_list],axis=0)
+        state.new_f_ext_str = ''
+    return
+
+def new_support_input():
+    if not state.new_support_str == '':
+        new_support_list = string_to_list(state.new_support_str)
+        new_support_list[1] = math.radians(new_support_list[1])
+        if state.new_supports == [[]]:
+            state.new_supports = [new_support_list]
+        else:
+            if new_support_list not in state.new_supports:
+                state.new_supports = np.append(state.new_supports,[new_support_list],axis=0)
+        state.new_support_str = ''
+    return
+
+def string_to_list(stringlist):
+    list_of_str = stringlist.split()
+    list_from_str = [float(x) for x in list_of_str]
+    return list_from_str
+
+def update_all(removed_members,new_members,removed_forces,removed_supports,new_f_ext,new_supports):
+    if not removed_members == []:
         state.members = np.delete(state.members,removed_members,axis=0)
+        state.removed_members = []
+    if not new_members == [[]]:
         state.members = np.append(state.members,new_members,axis=0)
         state.new_members = [[]]
-        state.removed_members = []
+        
+    if not removed_forces == []:
+        state.f_ext = np.delete(state.f_ext,removed_forces,axis=0)
+        state.removed_forces = []
+    if not new_f_ext == [[]]:
+        st.write(str(new_f_ext))
+        state.f_ext = np.append(state.f_ext,new_f_ext,axis=0)
+        state.new_f_ext = [[]]
+        
+    if not removed_supports == []:
+        state.support = np.delete(state.support,removed_supports,axis=0)
+        state.removed_support = []
+    if not new_supports == [[]]:
+        state.support = np.append(state.support,new_supports,axis=0)
+        state.new_supports = [[]]
+        
     return
 
 ###############################################################################
@@ -422,16 +469,16 @@ def bmatrix(a,matrixtype=''):
     
     return text
 
-def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize):
+def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize,n_nodes):
     label_vector = []
     k=0
     for node in connected_nodes:
-        label_vector.append([r' \text{' + str(node)])
-        label_vector[k][0] += 'x'
+        label_vector.append([r' \text{N.' + str(int(np.floor(k/2))) + r' ' + str(node)])
+        label_vector[k][0] += ', x'
         label_vector[k][0] += '}'
         k+=1
-        label_vector.append([r' \text{' + str(node)])
-        label_vector[k][0] += 'y'
+        label_vector.append([r' \text{N.' + str(int(np.floor(k/2))) + r' ' + str(node)])
+        label_vector[k][0] += ', y'
         label_vector[k][0] += '}'
         k+=1
     label_vector=np.array(label_vector)
@@ -444,7 +491,7 @@ def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize)
     equation_string = r'$'
     equation_string += textsize
     equation_string += r' \begin{matrix} '
-    equation_string += r'\text{nodes} & \text{' + str(n_rods) + ' rods and ' + str(n_bcs) + ' boundary conditions}'
+    equation_string += r'\text{' + str(n_nodes) + r' nodes} & \text{' + str(n_rods) + ' rods and ' + str(n_bcs) + ' boundary conditions}'
     #equation_string += bmatrix(label_vector,'h')
     equation_string += r' & \text{internal forces} & \text{external forces}\\'
     equation_string += bmatrix(label_vector,'v')
@@ -475,6 +522,20 @@ if 'new_members' not in state:
     state.new_members = [[]]
 if 'selected_nodes' not in state:
     state.selected_nodes = []
+    
+if 'removed_forces' not in state:
+    state.removed_forces = []
+if 'new_f_ext' not in state:
+    state.new_f_ext = [[]]
+if 'new_f_ext_str' not in state:
+    state.new_f_ext_str = ''
+    
+if 'removed_supports' not in state:
+    state.removed_supports = []
+if 'new_supports' not in state:
+    state.new_supports = [[]]
+if 'new_support_str' not in state:
+    state.new_support_str = ''
 
 st.title("Internal forces of a rod structure")
 
@@ -510,11 +571,23 @@ if 'members' not in state:
     
 onlyviz = st.sidebar.checkbox("Visualization only. Choose this to be able to change the structure. Deselect to update the calculations.")
 if onlyviz:
+    new_f_ext_str = st.sidebar.text_input(label = "add external forces", 
+                                          help = "node angle force",
+                                          placeholder="e.g. '6 90 10'", 
+                                          on_change=new_force_input(), 
+                                          key='new_f_ext_str')
+    new_support_str = st.sidebar.text_input(label = "add supports", 
+                                            help = "node angle",
+                                            placeholder="e.g. '10 90'", 
+                                            on_change=new_support_input(),
+                                            key='new_support_str')
+    
     apply_changes = st.sidebar.button('Apply changes')#,on_click=update_members(state.removed_members,state.new_members))
-    if apply_changes:
-        update_members(state.removed_members,state.new_members)
         
-debug = st.sidebar.checkbox(label="show development stuff")
+    if apply_changes:
+        update_all(state.removed_members,state.new_members,state.removed_forces,state.removed_supports,state.new_f_ext,state.new_supports)
+          
+debug = False#st.sidebar.checkbox(label="show development stuff")
 
 if debug:
     st.sidebar.warning("Supports and external forces are in development.")
@@ -537,9 +610,10 @@ if debug:
     #     exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
    
     st.sidebar.write('members: ' + str(state.members))
-    #st.sidebar.write('nodes: ' + str(all_nodes))
-    #st.sidebar.write('support: ' + str(state.support.round()))
-    #st.sidebar.write('f_ext: ' + str(state.f_ext.round()))
+    st.sidebar.write('nodes: ' + str(all_nodes))
+    st.sidebar.write('support: ' + str(state.support.round()))
+    st.sidebar.write('f_ext: ' + str(state.f_ext.round()))
+    
 else:
     if 'support' not in state:
         state.support = np.array([
@@ -622,10 +696,20 @@ if onlyviz:
                 st.write(nodes_string)
                 
             if sn[0]['curveNumber'] == len(state.members)+1:
-                st.write('You selected a force. Forces can only be set in the sidebar.')
+                if (sn[0]['pointNumber']-10)%4 == 0:
+                    iforce = int((sn[0]['pointNumber']-10)/4)
+                    if iforce not in state.removed_forces:
+                        state.removed_forces.append(iforce)
+                else:
+                    st.write('Please select the force via the tip of the arrow.')
                 
             if sn[0]['curveNumber'] == len(state.members)+2:
-                st.write('You selected a support. Supports can only be set in the sidebar.')
+                if (sn[0]['pointNumber']-10)%4 == 0:
+                    isupport = int((sn[0]['pointNumber']-10)/4)
+                    if isupport not in state.removed_supports:
+                        state.removed_supports.append(isupport)
+                else:
+                    st.write('Please select the support via the tip of the arrow.')
                 
             if sn[0]['curveNumber'] == len(state.members)+3:
                 state.removed_members.append(sn[0]['pointNumber'])
@@ -641,12 +725,17 @@ if onlyviz:
         if (2*len(connected_nodes) > (len(state.members) + len(state.support))):
             status_string += 'You need to add more members or supports.'
         else:
-            status_string += 'You need to add more nodes.'
+            status_string += 'You need to remove members or supports or add more nodes.'
     st.write(status_string)
-    st.markdown(r'You chose to remove members #' + str(state.removed_members) + r''' You chose to add members on ''' + str(state.new_members))
+    st.markdown(r'You chose to remove **members** #' + str(state.removed_members) + '. '
+                + 'You chose to add members on ' + str(state.new_members) + '. '
+                + r'You chose to remove **supports** #' + str(state.removed_supports) + '. '
+                + 'You chose to add supports on ' + str(np.round(state.new_supports,2)) + '. '
+                + r'You chose to remove **forces** #' + str(state.removed_forces) + '. '
+                + 'You chose to add forces on ' + str(np.round(state.new_f_ext,2)) + '. ')
 else:
     st.plotly_chart(fig)
 
 with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
-    st.markdown(print_equations(state.matrix, state.rhs, state.internal_forces,len(state.members),len(state.support),decimals,textsize))
+    st.markdown(print_equations(state.matrix, state.rhs, state.internal_forces,len(state.members),len(state.support),decimals,textsize,len(connected_nodes)))
     
