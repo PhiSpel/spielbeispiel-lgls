@@ -353,26 +353,37 @@ def update_plot(internal_forces,members,nodes,f_ext,support,onlyviz):
                            name='Supports')
     fig.add_traces(data=quiver.data)
     
-    if onlyviz:
-        #draw center points to be able to deselect rods
-        centresx=[]
-        centresy=[]
-        member_names=[]
-        for m in np.arange(0,len(members)):
-            node1_index = int(members[m,0])
-            node2_index = int(members[m,1])
-            node1_coord = nodes[node1_index,:]
-            node2_coord = nodes[node2_index,:]
-            centresx.append((node1_coord[0]+node2_coord[0])/2)
-            centresy.append((node1_coord[1]+node2_coord[1])/2)
-            member_names.append('deselect member #' + str(m+1) + '; current force: ' + str(round(internal_forces[m][0])))
-            
+    #draw center points to be able to deselect rods
+    centresx=[]
+    centresy=[]
+    member_names=[]
+    for m in np.arange(0,len(members)):
+        node1_index = int(members[m,0])
+        node2_index = int(members[m,1])
+        node1_coord = nodes[node1_index,:]
+        node2_coord = nodes[node2_index,:]
+        centresx.append((node1_coord[0]+node2_coord[0])/2)
+        centresy.append((node1_coord[1]+node2_coord[1])/2)
+        if onlyviz:
+            member_names.append('deselect member #' + str(m) + '; current force: ' + str(round(internal_forces[m][0])))
+        else:
+            member_names.append('member #' + str(m) + '; current force: ' + str(round(internal_forces[m][0])))
+    if onlyviz:    
         fig.add_trace(go.Scatter(
             x=centresx,
             y=centresy,
             mode='markers',
             marker=dict(symbol='x',color='orange'),
             name='members for deselection',
+            text=member_names
+            ))
+    else:
+        fig.add_trace(go.Scatter(
+            x=centresx,
+            y=centresy,
+            mode='markers',
+            marker=dict(symbol='circle',color='orange'),
+            name='',
             text=member_names
             ))
         
@@ -497,23 +508,11 @@ if 'members' not in state:
         [16,20]
         ])
     
-# if 'support' not in state:
-#     state.support = np.array([
-#         [0, 0],
-#         [0, 90],
-#         [20, 90]
-#         ],dtype='f')
-#     # convert angles to radians
-#     state.support[:,1] = np.radians(state.support[:,1])
-    
-# if 'f_ext' not in state:
-#     state.f_ext = np.array([
-#         [5,-90,10],
-#         [12,180,10],
-#         [10,-90,15]
-#         ],dtype='f')
-#     # convert angles to radians
-#     state.f_ext[:,1] = np.radians(state.f_ext[:,1])
+onlyviz = st.sidebar.checkbox("Visualization only. Choose this to be able to change the structure. Deselect to update the calculations.")
+if onlyviz:
+    apply_changes = st.sidebar.button('Apply changes')#,on_click=update_members(state.removed_members,state.new_members))
+    if apply_changes:
+        update_members(state.removed_members,state.new_members)
 
 support_str = st.sidebar.text_input(label = "support", help = "[node,angle]", 
                                     value='''[0, 0],[0, 90],[20, 90]''')
@@ -555,23 +554,13 @@ if debug:
 else:
     decimals = 2
     textsize = r'\scriptsize'
+    
 ###############################################################################
 # VISUAL VS CALCULATED
 ###############################################################################
 
-[col1,col2] = st.columns([4,1])
-
-with col1:
-    onlyviz = st.checkbox("Visualization only. Choose this to be able to change the structure. Deselect to update the calculations.")
-
-with col2:
-    if onlyviz:
-        apply_changes = st.button('Apply changes')#,on_click=update_members(state.removed_members,state.new_members))
-        if apply_changes:
-            update_members(state.removed_members,state.new_members)
-            
 if onlyviz:
-    st.write('Mind the admonitions below the plot on requirements to the rod system.')
+    st.write('Mind the admonitions below the plot about requirements to the rod system.')
 
 ###############################################################################
 # CALCULATIONS
