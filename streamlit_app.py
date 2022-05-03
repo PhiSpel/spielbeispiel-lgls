@@ -180,7 +180,7 @@ def new_member(new_nodes):
 def new_force_input():
     if not state.new_f_ext_str == '':
         new_f_ext_list = string_to_list(state.new_f_ext_str)
-        new_f_ext_list[1] = math.radians(new_f_ext_list[1])
+        #new_f_ext_list[1] = math.radians(new_f_ext_list[1])
         if state.new_f_ext == [[]]:
             state.new_f_ext = [new_f_ext_list]
         else:
@@ -191,7 +191,7 @@ def new_force_input():
 def new_support_input():
     if not state.new_support_str == '':
         new_support_list = string_to_list(state.new_support_str)
-        new_support_list[1] = math.radians(new_support_list[1])
+        #new_support_list[1] = math.radians(new_support_list[1])
         if state.new_supports == [[]]:
             state.new_supports = [new_support_list]
         else:
@@ -632,6 +632,7 @@ with st.expander('Explanation'):
              + "Deselect rods via the orange 'x' markers. Add rods by klicking both nodes after each other (you may need to hide the rod-markers by klicking on 'x members for deselection' in the legend). You get information about which node(s) you chose below the plot.  \n "
              + "Deselect supports or forces by klicking them or by choosing 'Use vectors as input' in the sidebar. Add new ones in the sidebar.  \n "
              + "To display your changes, klick 'Update plot'. To then update your calculations, click 'Update calculations' and deselect 'Interactive mode'.  \n "
+             + "Keep in mind that your rod structure must consist of triangles to yield sensible results!  \n "
              )
 
 ###############################################################################
