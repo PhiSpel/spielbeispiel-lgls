@@ -554,7 +554,7 @@ if 'all_nodes' not in state:
     for x in range(l+1):
         for y in range(h+1):
             all_nodes.append([x,y])
-    all_nodes=np.array(all_nodes)
+    state.all_nodes=np.array(all_nodes)
 
 if 'members' not in state:
     state.members = np.array([
