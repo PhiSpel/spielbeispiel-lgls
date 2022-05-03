@@ -591,12 +591,12 @@ if 'new_support_str' not in state:
 if 'support_str' not in state:
     state.support_str = ''
 
-if 'internal_forces' not in state:
-    state.internal_forces = np.array([])
-if 'matrix' not in state:
-    state.matrix = []
-if 'rhs' not in state:
-    state.rhs = []
+# if 'internal_forces' not in state:
+#     state.internal_forces = np.array([])
+# if 'matrix' not in state:
+#     state.matrix = []
+# if 'rhs' not in state:
+#     state.rhs = []
     
 if 'all_nodes' not in state:
     l = 5#st.sidebar.number_input(label='length of plot',min_value=2,max_value=10,value=5)
@@ -717,6 +717,8 @@ if onlyviz:
 
 [rods_per_node, connected_nodes, issquare, forces_connected] = check_data(state.all_nodes,state.members,state.support,state.f_ext)
 
+if 'matrix' not in state:
+    state.matrix, state.rhs, state.internal_forces = update_data(state.all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node)
 if 'fig' not in state:
     [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
 
