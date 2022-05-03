@@ -634,7 +634,7 @@ if onlyviz:
         
         f_ext_str = st.sidebar.text_input(label = "external forces", 
                                           help = "[node,angle,force]", 
-                                          value='[5,-90,10],[12,180,10],[15,-90,15]'
+                                          value='[5,-90,10],[12,180,10],[15,-90,15]',
                                           key='f_ext_str',
                                           on_change=new_force())
         if 'f_ext' not in state: 
