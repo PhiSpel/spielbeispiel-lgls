@@ -200,12 +200,13 @@ def new_support_input():
         state.new_support_str = ''
     return
 
-def new_support():
-    exec("state.support = np.array([" + state.support_str + "],dtype='f')")
-    return
-
-def new_force():
-    exec("state.f_ext = np.array([" + state.f_ext_str + "],dtype='f')")
+def new_array(arraytype):
+    if arraytype == 'support':
+        exec("state.support = np.array([" + state.support_str + "])")
+    elif arraytype == 'f_ext':
+        exec("state.f_ext = np.array([" + state.f_ext_str + "])")
+    elif arraytype == 'members':
+        exec("state.members = np.array([" + state.members_str + "])")
     return
 
 def string_to_list(stringlist):
@@ -539,6 +540,8 @@ if 'new_f_ext' not in state:
     state.new_f_ext = [[]]
 if 'new_f_ext_str' not in state:
     state.new_f_ext_str = ''
+# if 'f_ext_str' not in state:
+#     state.f_ext_str = ''
     
 if 'removed_supports' not in state:
     state.removed_supports = []
@@ -546,6 +549,8 @@ if 'new_supports' not in state:
     state.new_supports = [[]]
 if 'new_support_str' not in state:
     state.new_support_str = ''
+# if 'support_str' not in state:
+#     state.support_str = ''
 
 if 'all_nodes' not in state:
     l = 5#st.sidebar.number_input(label='length of plot',min_value=2,max_value=10,value=5)
@@ -624,25 +629,38 @@ else:
 
 onlyviz = st.sidebar.checkbox("Visualization only. Choose this to be able to change the structure. Deselect to update the calculations.")
 if onlyviz:
-    vectorinput = st.sidebar.checkbox('Use vectorized input.')
+    vectorinput = False#st.sidebar.checkbox('Use vectorized input.')
     if vectorinput:
+        members_str = st.sidebar.text_input(label = "support", 
+                                            help = "[node,angle]", 
+                                            value='''[0,6],
+                                            [0,5],
+                                            [6,5],
+                                            [5,10],
+                                            [6,10],
+                                            [6,12],
+                                            [12,10],
+                                            [10,15],
+                                            [10,16],
+                                            [16,15],
+                                            [12,16],
+                                            [15,20],
+                                            [16,20]''',
+                                            key='members_str',
+                                            on_change=new_array('members'))
+        
         support_str = st.sidebar.text_input(label = "support", 
                                             help = "[node,angle]", 
                                             value='[0, 0],[0, 90],[20, 90]',
                                             key='support_str',
-                                            on_change=new_support())
+                                            on_change=new_array('support'))
         
         f_ext_str = st.sidebar.text_input(label = "external forces", 
                                           help = "[node,angle,force]", 
                                           value='[5,-90,10],[12,180,10],[15,-90,15]',
                                           key='f_ext_str',
-                                          on_change=new_force())
-        if 'f_ext' not in state: 
-            exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
-            
-        else:
-            exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
-       
+                                          on_change=new_array('f_ext'))
+        
     else:
         new_f_ext_str = st.sidebar.text_input(label = "add external forces", 
                                           help = "node angle force",
@@ -768,7 +786,8 @@ if onlyviz:
                 + r'You chose to remove **supports** #' + str(state.removed_supports) + '. '
                 + 'You chose to add supports on ' + str(np.round(state.new_supports,2)) + '. '
                 + r'You chose to remove **forces** #' + str(state.removed_forces) + '. '
-                + 'You chose to add forces on ' + str(np.round(state.new_f_ext,2)) + '. ')
+                + 'You chose to add forces on ' + str(np.round(state.new_f_ext,2)) + '. '
+                + "Update the plot by clicking 'Apply changes' in the sidebar.")
 else:
     st.plotly_chart(fig)
 
