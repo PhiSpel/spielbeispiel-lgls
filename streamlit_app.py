@@ -718,6 +718,7 @@ if onlyviz:
     
         if apply_changes:
             update_all(state.removed_members,state.new_members,state.removed_forces,state.removed_supports,state.new_f_ext,state.new_supports)
+            state.selected_nodes = []
           
 ###############################################################################
 # CALCULATIONS
