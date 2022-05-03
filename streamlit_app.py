@@ -224,7 +224,8 @@ def update_all(removed_members,new_members,removed_forces,removed_supports,new_f
         state.f_ext = np.delete(state.f_ext,removed_forces,axis=0)
         state.removed_forces = []
     if not new_f_ext == [[]]:
-        st.write(str(new_f_ext))
+        if debug:
+            st.write(str(new_f_ext))
         state.f_ext = np.append(state.f_ext,new_f_ext,axis=0)
         state.new_f_ext = [[]]
         
