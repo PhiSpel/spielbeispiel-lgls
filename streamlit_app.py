@@ -752,78 +752,76 @@ elif calculate:
 fig = state.fig
 
 if onlyviz:
-    with st.expander('', expanded=True):
-        sn = plotly_events(fig)
-        if debug:
-            st.write('return value of plotly_events: ' + str(sn))
-        if not sn == []:
+    sn = plotly_events(fig)
+    if debug:
+        st.write('return value of plotly_events: ' + str(sn))
+    if not sn == []:
+        
+        if sn[0]['curveNumber'] == len(state.members)+0:
+            state.selected_nodes.append(sn[0]['pointNumber'])
+            if len(state.selected_nodes) == 1:
+                st.write('You selected node #'
+                         + str(sn[0]['pointNumber'])
+                         + '. Select another one to draw a new rod')
+            nodes_string = 'Current storage in state.selected_nodes: ' + str(state.selected_nodes)
+            if len(state.selected_nodes) == 2:
+                if state.selected_nodes[1] == state.selected_nodes[0]:
+                    nodes_string += '. Will not write to state.new_members, b/c you selected the same node twice.'
+                else:
+                    new_member(state.selected_nodes)
+                    nodes_string += '. Wrote nodes to state.new_members.'
+                state.selected_nodes = []
+            elif len(state.selected_nodes) > 2:
+                state.selected_nodes = []
+                nodes_string += '. Must be a bug. Cleared selected nodes.'
+            st.write(nodes_string)
             
-            if sn[0]['curveNumber'] == len(state.members)+0:
-                state.selected_nodes.append(sn[0]['pointNumber'])
-                if len(state.selected_nodes) == 1:
-                    st.write('You selected node #'
-                             + str(sn[0]['pointNumber'])
-                             + '. Select another one to draw a new rod')
-                nodes_string = 'Current storage in state.selected_nodes: ' + str(state.selected_nodes)
-                if len(state.selected_nodes) == 2:
-                    if state.selected_nodes[1] == state.selected_nodes[0]:
-                        nodes_string += '. Will not write to state.new_members, b/c you selected the same node twice.'
-                    else:
-                        new_member(state.selected_nodes)
-                        nodes_string += '. Wrote nodes to state.new_members.'
-                    state.selected_nodes = []
-                elif len(state.selected_nodes) > 2:
-                    state.selected_nodes = []
-                    nodes_string += '. Must be a bug. Cleared selected nodes.'
-                st.write(nodes_string)
-                
-            if sn[0]['curveNumber'] == len(state.members)+1:
-                if (sn[0]['pointNumber']-10)%4 == 0:
-                    iforce = int((sn[0]['pointNumber']-10)/4)
-                    if iforce not in state.removed_forces:
-                        state.removed_forces.append(iforce)
-                else:
-                    st.write('Please select the force via the tip of the arrow.')
-                
-            if sn[0]['curveNumber'] == len(state.members)+2:
-                if (sn[0]['pointNumber']-10)%4 == 0:
-                    isupport = int((sn[0]['pointNumber']-10)/4)
-                    if isupport not in state.removed_supports:
-                        state.removed_supports.append(isupport)
-                else:
-                    st.write('Please select the support via the tip of the arrow.')
-                
-            if sn[0]['curveNumber'] == len(state.members)+3:
-                state.removed_members.append(sn[0]['pointNumber'])
-                
-        # checking if we will get a square matrix
-        if forces_connected == False:
-            st.warning('Not all forces are connected. You may solve the system anyway.')
-        status_string = (textsize_md + r'''You need to fulfill 
-            $$ 2 \cdot n_\text{nodes} = n_\text{members} + n_\text{supports} $$
-            to get a square matrix. ''' + 'You have '
-            + str(len(connected_nodes)) + ' nodes, '
-            + str(len(state.members)) + ' members and '
-            + str(len(state.support)) + ' supports. ')
-        if issquare:
-            status_string += 'Currently, you get a square matrix.'
-        else:
-            if (2*len(connected_nodes) > (len(state.members) + len(state.support))):
-                status_string += 'You need to add more members or supports.'
+        if sn[0]['curveNumber'] == len(state.members)+1:
+            if (sn[0]['pointNumber']-10)%4 == 0:
+                iforce = int((sn[0]['pointNumber']-10)/4)
+                if iforce not in state.removed_forces:
+                    state.removed_forces.append(iforce)
             else:
-                status_string += 'You need to remove members or supports or add more nodes.'
-        st.markdown(status_string + r''' </font>''', unsafe_allow_html=True)
-        st.markdown(textsize_md
-                    + r'You remove **members** #' + str(state.removed_members)
-                    + ' and add members on ' + str(state.new_members) + '. '
-                    + r'You remove **supports** #' + str(state.removed_supports)
-                    + 'and add supports on ' + str(np.round(state.new_supports,2)) + '. '
-                    + r'You remove **forces** #' + str(state.removed_forces)
-                    + ' and add forces on ' + str(np.round(state.new_f_ext,2)) + '. '
-                    + r''' </font>''', unsafe_allow_html=True)
+                st.write('Please select the force via the tip of the arrow.')
+            
+        if sn[0]['curveNumber'] == len(state.members)+2:
+            if (sn[0]['pointNumber']-10)%4 == 0:
+                isupport = int((sn[0]['pointNumber']-10)/4)
+                if isupport not in state.removed_supports:
+                    state.removed_supports.append(isupport)
+            else:
+                st.write('Please select the support via the tip of the arrow.')
+            
+        if sn[0]['curveNumber'] == len(state.members)+3:
+            state.removed_members.append(sn[0]['pointNumber'])
+            
+    # checking if we will get a square matrix
+    if forces_connected == False:
+        st.warning('Not all forces are connected. You may solve the system anyway.')
+    status_string = (textsize_md + r'''You need to fulfill 
+        $$ 2 \cdot n_\text{nodes} = n_\text{members} + n_\text{supports} $$
+        to get a square matrix. ''' + 'You have '
+        + str(len(connected_nodes)) + ' nodes, '
+        + str(len(state.members)) + ' members and '
+        + str(len(state.support)) + ' supports. ')
+    if issquare:
+        status_string += 'Currently, you get a square matrix.'
+    else:
+        if (2*len(connected_nodes) > (len(state.members) + len(state.support))):
+            status_string += 'You need to add more members or supports.'
+        else:
+            status_string += 'You need to remove members or supports or add more nodes.'
+    st.markdown(status_string + r''' </font>''', unsafe_allow_html=True)
+    st.markdown(textsize_md
+                + r'You remove **members** #' + str(state.removed_members)
+                + ' and add members on ' + str(state.new_members) + '. '
+                + r'You remove **supports** #' + str(state.removed_supports)
+                + 'and add supports on ' + str(np.round(state.new_supports,2)) + '. '
+                + r'You remove **forces** #' + str(state.removed_forces)
+                + ' and add forces on ' + str(np.round(state.new_f_ext,2)) + '. '
+                + r''' </font>''', unsafe_allow_html=True)
 else:
     st.plotly_chart(fig)
 
-with st.expander('', expanded=True):
-    st.markdown(print_equations(state.matrix, state.rhs, state.internal_forces,len(state.members),len(state.support),decimals,textsize,len(connected_nodes)))
+st.markdown(print_equations(state.matrix, state.rhs, state.internal_forces,len(state.members),len(state.support),decimals,textsize,len(connected_nodes)))
     
