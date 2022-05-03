@@ -239,6 +239,30 @@ def update_all(removed_members,new_members,removed_forces,removed_supports,new_f
         
     return
 
+def reset_data():
+    state.members = np.array([
+        [0,6],
+        [0,5],
+        [6,5],
+        [5,10],
+        [6,10],
+        [6,12],
+        [12,10],
+        [10,15],
+        [10,16],
+        [16,15],
+        [12,16],
+        [15,20],
+        [16,20]
+        ])
+    state.support = np.array([
+        [0, 0],[0, 90],[20, 90]
+        ])
+    state.f_ext = np.array([
+        [5,-90,10],[12,180,10],[15,-90,15]
+        ])
+    return
+
 ###############################################################################
 # PLOTS
 ###############################################################################
@@ -533,6 +557,8 @@ if 'new_members' not in state:
     state.new_members = [[]]
 if 'selected_nodes' not in state:
     state.selected_nodes = []
+if 'members_str' not in state:
+    state.members_str = ''
     
 if 'removed_forces' not in state:
     state.removed_forces = []
@@ -540,8 +566,8 @@ if 'new_f_ext' not in state:
     state.new_f_ext = [[]]
 if 'new_f_ext_str' not in state:
     state.new_f_ext_str = ''
-# if 'f_ext_str' not in state:
-#     state.f_ext_str = ''
+if 'f_ext_str' not in state:
+    state.f_ext_str = ''
     
 if 'removed_supports' not in state:
     state.removed_supports = []
@@ -549,8 +575,8 @@ if 'new_supports' not in state:
     state.new_supports = [[]]
 if 'new_support_str' not in state:
     state.new_support_str = ''
-# if 'support_str' not in state:
-#     state.support_str = ''
+if 'support_str' not in state:
+    state.support_str = ''
 
 if 'all_nodes' not in state:
     l = 5#st.sidebar.number_input(label='length of plot',min_value=2,max_value=10,value=5)
@@ -578,7 +604,9 @@ if 'members' not in state:
         [16,20]
         ])
     
-st.title("Internal forces of a rod structure")
+col1,col2 = st.columns([6,1])
+with col1:
+    st.title("Internal forces of a rod structure")
 
 ###############################################################################
 # DEBUG OPTIONS
@@ -587,65 +615,49 @@ st.title("Internal forces of a rod structure")
 debug = False#st.sidebar.checkbox(label="show development stuff")
 
 if debug:
-    st.sidebar.warning("Supports and external forces are in development.")
-
-    support_str = st.sidebar.text_input(label = "support", help = "[node,angle]", 
-                                        value='''[0, 0],[0, 90],[20, 90]''')
-    
-    if 'support' not in state: 
-        exec("state.support = np.array([" + support_str + "],dtype='f')")
-        
-    # else:
-    #     exec("state.support = np.array([" + support_str + "],dtype='f')")
-    
-        f_ext_str = st.sidebar.text_input(label = "external forces", help = "[node,angle,force]", value='''[5,-90,10],[12,180,10],[15,-90,15]''')
-        
-    if 'f_ext' not in state: 
-        exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
-        
-    # else:
-    #     exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
-   
-    st.sidebar.write('members: ' + str(state.members))
-    st.sidebar.write('nodes: ' + str(state.all_nodes))
-    st.sidebar.write('support: ' + str(state.support.round()))
-    st.sidebar.write('f_ext: ' + str(state.f_ext.round()))
-    
+    decimals = st.sidebar.number_input(label="precision of print",min_value=0,max_value=5,value=2)
+    #textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
 else:
+    decimals = 2
+    #textsize = r'\scriptsize'
+
+if not debug:
     if 'support' not in state:
         state.support = np.array([
             [0, 0],[0, 90],[20, 90]
-            ],dtype='f')
+            ])
         
     if 'f_ext' not in state:
         state.f_ext = np.array([
             [5,-90,10],[12,180,10],[15,-90,15]
-            ],dtype='f')
+            ])
 
+###############################################################################
+# BUTTONS
+###############################################################################
 
+with col2:
+    reset = st.button('Reset data')
+if reset: reset_data()
+
+with col2:
+    onlyviz = st.checkbox("Interactive mode",key='onlyviz')
+    if onlyviz:
+        calculate = st.button('Update calculations')
+        if calculate: state.onlyviz = False
+        
 ###############################################################################
 # SIDEBARS
 ###############################################################################
 
-onlyviz = st.sidebar.checkbox("Visualization only. Choose this to be able to change the structure. Deselect to update the calculations.")
+textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
+
 if onlyviz:
     vectorinput = False#st.sidebar.checkbox('Use vectorized input.')
     if vectorinput:
-        members_str = st.sidebar.text_input(label = "support", 
+        members_str = st.sidebar.text_input(label = "members", 
                                             help = "[node,angle]", 
-                                            value='''[0,6],
-                                            [0,5],
-                                            [6,5],
-                                            [5,10],
-                                            [6,10],
-                                            [6,12],
-                                            [12,10],
-                                            [10,15],
-                                            [10,16],
-                                            [16,15],
-                                            [12,16],
-                                            [15,20],
-                                            [16,20]''',
+                                            value='''[0,6],[0,5],[6,5],[5,10],[6,10],[6,12],[12,10],[10,15],[10,16],[16,15],[12,16],[15,20],[16,20]''',
                                             key='members_str',
                                             on_change=new_array('members'))
         
@@ -684,15 +696,6 @@ if 'matrix' not in state:
     state.matrix = []
 if 'rhs' not in state:
     state.rhs = []
-
-if debug:
-    decimals = st.sidebar.number_input(label="precision of print",min_value=0,max_value=5,value=2)
-    #textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
-else:
-    decimals = 2
-    #textsize = r'\scriptsize'
-textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
-
     
 ###############################################################################
 # VISUAL VS CALCULATED
