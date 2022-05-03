@@ -200,6 +200,14 @@ def new_support_input():
         state.new_support_str = ''
     return
 
+def new_support():
+    exec("state.support = np.array([" + state.support_str + "],dtype='f')")
+    return
+
+def new_force():
+    exec("state.f_ext = np.array([" + state.f_ext_str + "],dtype='f')")
+    return
+
 def string_to_list(stringlist):
     list_of_str = stringlist.split()
     list_from_str = [float(x) for x in list_of_str]
@@ -608,7 +616,7 @@ else:
         state.f_ext = np.array([
             [5,-90,10],[12,180,10],[15,-90,15]
             ],dtype='f')
-        
+
 
 ###############################################################################
 # SIDEBARS
@@ -616,21 +624,25 @@ else:
 
 onlyviz = st.sidebar.checkbox("Visualization only. Choose this to be able to change the structure. Deselect to update the calculations.")
 if onlyviz:
-    vectorinput = False#st.sidebar.checkbox('Use vectorized input.')
+    vectorinput = st.sidebar.checkbox('Use vectorized input.')
     if vectorinput:
-        support_str = st.sidebar.text_input(label = "support", help = "[node,angle]", 
-                                            value='''[0, 0],[0, 90],[20, 90]''')
-        exec("state.support = np.array([" + support_str + "],dtype='f')")
-        exec("state.support = np.array([" + support_str + "],dtype='f')")
+        support_str = st.sidebar.text_input(label = "support", 
+                                            help = "[node,angle]", 
+                                            value='[0, 0],[0, 90],[20, 90]',
+                                            key='support_str',
+                                            on_change=new_support())
         
-        f_ext_str = st.sidebar.text_input(label = "external forces", help = "[node,angle,force]", value='''[5,-90,10],[12,180,10],[15,-90,15]''')
+        f_ext_str = st.sidebar.text_input(label = "external forces", 
+                                          help = "[node,angle,force]", 
+                                          value='[5,-90,10],[12,180,10],[15,-90,15]'
+                                          key='f_ext_str',
+                                          on_change=new_force())
         if 'f_ext' not in state: 
             exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
             
         else:
             exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
        
-            
     else:
         new_f_ext_str = st.sidebar.text_input(label = "add external forces", 
                                           help = "node angle force",
