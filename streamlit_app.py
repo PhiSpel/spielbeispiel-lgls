@@ -27,15 +27,13 @@ import streamlit as st
 from streamlit import session_state as state
 from streamlit_plotly_events import plotly_events
 
-import math
+#import math
 
 ###############################################################################
 # TO-DO
 ###############################################################################
 
-# 3. create error-messages
-# 4. allow vectorized input
-# 5. fix [] error on internal_forces
+# 6. always show matrix
 
 ###############################################################################
 # CALCULATIONS
@@ -447,7 +445,7 @@ def update_plot(internal_forces,members,nodes,f_ext,support,onlyviz):
         centresx.append((node1_coord[0]+node2_coord[0])/2)
         centresy.append((node1_coord[1]+node2_coord[1])/2)
         if onlyviz:
-            member_names.append('deselect member #' + str(m) + '; current force: ' + str(round(internal_forces[m][0])))
+            member_names.append('deselect member #' + str(m))
         else:
             member_names.append('member #' + str(m) + '; current force: ' + str(round(internal_forces[m][0])))
     if onlyviz:    
@@ -630,7 +628,7 @@ with st.expander('Explanation'):
     st.write("You can see a rod system with supports and forces in the plot. Below, you see the linear system of equations that is solved to calculate the iternal forces of the rods.  \n "
              + "Select 'Interactive mode' to be able to change the beam structure.  \n "
              + "Deselect rods via the orange 'x' markers. Add rods by klicking both nodes after each other (you may need to hide the rod-markers by klicking on 'x members for deselection' in the legend). You get information about which node(s) you chose below the plot.  \n "
-             + "Deselect supports or forces by klicking them or by choosing 'Use vectors as input' in the sidebar. Add new ones in the sidebar.  \n "
+             + "Deselect supports or forces by klicking the points of their arrows or by choosing 'Use vectors as input' in the sidebar. Add new ones in the sidebar.  \n "
              + "To display your changes, klick 'Update plot'. To then update your calculations, click 'Update calculations' and deselect 'Interactive mode'.  \n "
              + "Keep in mind that your rod structure must consist of triangles to yield sensible results!  \n "
              )
