@@ -561,7 +561,7 @@ def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize,
 # STREAMLIT AND STATES
 ###############################################################################
 
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide",initial_sidebar_state='collapsed')
 
 # setup session_states
 if 'removed_members' not in state:
@@ -625,6 +625,14 @@ if 'members' not in state:
         ])
     
 st.title("Internal forces of a rod structure")
+
+with st.expander('Explanation'):
+    st.write("You can see a rod system with supports and forces in the plot. Below, you see the linear system of equations that is solved to calculate the iternal forces of the rods.  \n "
+             + "Select 'Interactive mode' to be able to change the beam structure.  \n "
+             + "Deselect rods via the orange 'x' markers. Add rods by klicking both nodes after each other. You get information about which node(s) you chose below the plot.  \n "
+             + "Deselect supports or forces by klicking them or by choosing 'Use vectors as input' in the sidebar. Add new ones in the sidebar.  \n "
+             + "To display your changes, klick 'Update plot'. To then update your calculations, click 'Update calculations' and deselect 'Interactive mode'.  \n "
+             )
 
 ###############################################################################
 # DEBUG OPTIONS
@@ -723,6 +731,8 @@ if 'fig' not in state:
     [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
 
 if onlyviz:
+    if state.onlyviz:
+        [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
     if apply_changes:
         [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
 elif calculate:
@@ -734,7 +744,6 @@ elif calculate:
         onlyviz = True
         [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
     
-
 ###############################################################################
 # OUTPUTS
 ###############################################################################
