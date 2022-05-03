@@ -629,7 +629,7 @@ st.title("Internal forces of a rod structure")
 with st.expander('Explanation'):
     st.write("You can see a rod system with supports and forces in the plot. Below, you see the linear system of equations that is solved to calculate the iternal forces of the rods.  \n "
              + "Select 'Interactive mode' to be able to change the beam structure.  \n "
-             + "Deselect rods via the orange 'x' markers. Add rods by klicking both nodes after each other. You get information about which node(s) you chose below the plot.  \n "
+             + "Deselect rods via the orange 'x' markers. Add rods by klicking both nodes after each other (you may need to hide the rod-markers by klicking on 'x members for deselection' in the legend). You get information about which node(s) you chose below the plot.  \n "
              + "Deselect supports or forces by klicking them or by choosing 'Use vectors as input' in the sidebar. Add new ones in the sidebar.  \n "
              + "To display your changes, klick 'Update plot'. To then update your calculations, click 'Update calculations' and deselect 'Interactive mode'.  \n "
              )
