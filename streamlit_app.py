@@ -504,6 +504,19 @@ def bmatrix(a,matrixtype=''):
     
     return text
 
+def latex_to_md(textsize):
+    string = r'''<font size="'''
+    if textsize == r'\tiny':
+        string+='1'
+    elif textsize == r'\scriptsize':
+        string+='2'
+    elif (textsize == r'\footnotesize') | (textsize == r'\small'):
+        string+='3'
+    elif textsize == r'\normalsize':
+        string+='4'
+    string += r'''"> '''
+    return string
+
 def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize,n_nodes):
     label_vector = []
     k=0
@@ -578,6 +591,13 @@ if 'new_support_str' not in state:
 if 'support_str' not in state:
     state.support_str = ''
 
+if 'internal_forces' not in state:
+    state.internal_forces = np.array([])
+if 'matrix' not in state:
+    state.matrix = []
+if 'rhs' not in state:
+    state.rhs = []
+    
 if 'all_nodes' not in state:
     l = 5#st.sidebar.number_input(label='length of plot',min_value=2,max_value=10,value=5)
     h = 4#st.sidebar.number_input(label='height of plot',min_value=1,max_value=10,value=4)
@@ -604,9 +624,7 @@ if 'members' not in state:
         [16,20]
         ])
     
-col1,col2 = st.columns([6,1])
-with col1:
-    st.title("Internal forces of a rod structure")
+st.title("Internal forces of a rod structure")
 
 ###############################################################################
 # DEBUG OPTIONS
@@ -626,7 +644,6 @@ if not debug:
         state.support = np.array([
             [0, 0],[0, 90],[20, 90]
             ])
-        
     if 'f_ext' not in state:
         state.f_ext = np.array([
             [5,-90,10],[12,180,10],[15,-90,15]
@@ -636,24 +653,30 @@ if not debug:
 # BUTTONS
 ###############################################################################
 
-with col2:
+col1,col2,col3,col4 = st.columns(4)#([1,1,1,1,0])
+with col1:
     reset = st.button('Reset data')
 if reset: reset_data()
-
 with col2:
     onlyviz = st.checkbox("Interactive mode",key='onlyviz')
-    if onlyviz:
-        calculate = st.button('Update calculations')
-        if calculate: state.onlyviz = False
-        
+with col3:
+    apply_changes = st.button('Update plot')#,on_click=update_members(state.removed_members,state.new_members))
+with col4:
+    calculate = st.button('Update calculations')
+    if calculate: onlyviz = False
+
+if onlyviz:
+    st.write('Mind the admonitions below the plot about requirements to the rod system.')
+
 ###############################################################################
 # SIDEBARS
 ###############################################################################
 
 textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
+textsize_md = latex_to_md(textsize)
 
 if onlyviz:
-    vectorinput = False#st.sidebar.checkbox('Use vectorized input.')
+    vectorinput = st.sidebar.checkbox("Use vectors as input. (klick 'Update plot' once to initialize)")
     if vectorinput:
         members_str = st.sidebar.text_input(label = "members", 
                                             help = "[node,angle]", 
@@ -685,46 +708,37 @@ if onlyviz:
                                             on_change=new_support_input(),
                                             key='new_support_str')
     
-        apply_changes = st.sidebar.button('Apply changes')#,on_click=update_members(state.removed_members,state.new_members))
-        
         if apply_changes:
             update_all(state.removed_members,state.new_members,state.removed_forces,state.removed_supports,state.new_f_ext,state.new_supports)
           
-if 'internal_forces' not in state:
-    state.internal_forces = np.array([])
-if 'matrix' not in state:
-    state.matrix = []
-if 'rhs' not in state:
-    state.rhs = []
-    
-###############################################################################
-# VISUAL VS CALCULATED
-###############################################################################
-
-if onlyviz:
-    st.write('Mind the admonitions below the plot about requirements to the rod system.')
-
 ###############################################################################
 # CALCULATIONS
 ###############################################################################
 
 [rods_per_node, connected_nodes, issquare, forces_connected] = check_data(state.all_nodes,state.members,state.support,state.f_ext)
 
+if 'fig' not in state:
+    [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
+
 if onlyviz:
-    # calculating
-    [fig,forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
-else:
+    if apply_changes:
+        [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
+elif calculate:
     if issquare:
         state.matrix, state.rhs, state.internal_forces = update_data(state.all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node)
-        [fig,forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
+        [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
     else:
-        st.warning("I am having issues solving your system. Return to visualization only to check whether your system is solvable. If you neet to reset, press 'c' or refresh your browser.")
-        [fig,forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
+        st.warning("I am having issues solving your system. Return to interactive mode to check whether your system is solvable. If you need to reset, press 'Reste data'.")
+        onlyviz = True
+        [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
     
 
 ###############################################################################
 # OUTPUTS
 ###############################################################################
+
+# loading fig from cache
+fig = state.fig
 
 if onlyviz:
     with st.expander('', expanded=True):
@@ -771,26 +785,31 @@ if onlyviz:
             if sn[0]['curveNumber'] == len(state.members)+3:
                 state.removed_members.append(sn[0]['pointNumber'])
                 
-    # checking if we will get a square matrix
-    if forces_connected == False:
-        st.warning('Not all forces are connected. You may solve the system anyway.')
-    status_string = r'''You need to fulfill $$ 2 \cdot n_\text{nodes} = n_\text{members} + n_\text{supports} $$ to get a square matrix. '''
-    status_string += 'You have ' + str(len(connected_nodes)) + ' nodes, ' + str(len(state.members)) + ' members and ' + str(len(state.support)) + ' supports. '
-    if issquare:
-        status_string += 'Currently, you get a square matrix.'
-    else:
-        if (2*len(connected_nodes) > (len(state.members) + len(state.support))):
-            status_string += 'You need to add more members or supports.'
+        # checking if we will get a square matrix
+        if forces_connected == False:
+            st.warning('Not all forces are connected. You may solve the system anyway.')
+        status_string = (textsize_md + r'''You need to fulfill 
+            $$ 2 \cdot n_\text{nodes} = n_\text{members} + n_\text{supports} $$
+            to get a square matrix. ''' + 'You have '
+            + str(len(connected_nodes)) + ' nodes, '
+            + str(len(state.members)) + ' members and '
+            + str(len(state.support)) + ' supports. ')
+        if issquare:
+            status_string += 'Currently, you get a square matrix.'
         else:
-            status_string += 'You need to remove members or supports or add more nodes.'
-    st.write(status_string)
-    st.markdown(r'You chose to remove **members** #' + str(state.removed_members) + '. '
-                + 'You chose to add members on ' + str(state.new_members) + '. '
-                + r'You chose to remove **supports** #' + str(state.removed_supports) + '. '
-                + 'You chose to add supports on ' + str(np.round(state.new_supports,2)) + '. '
-                + r'You chose to remove **forces** #' + str(state.removed_forces) + '. '
-                + 'You chose to add forces on ' + str(np.round(state.new_f_ext,2)) + '. '
-                + "Update the plot by clicking 'Apply changes' in the sidebar.")
+            if (2*len(connected_nodes) > (len(state.members) + len(state.support))):
+                status_string += 'You need to add more members or supports.'
+            else:
+                status_string += 'You need to remove members or supports or add more nodes.'
+        st.markdown(status_string + r''' </font>''', unsafe_allow_html=True)
+        st.markdown(textsize_md
+                    + r'You remove **members** #' + str(state.removed_members)
+                    + ' and add members on ' + str(state.new_members) + '. '
+                    + r'You remove **supports** #' + str(state.removed_supports)
+                    + 'and add supports on ' + str(np.round(state.new_supports,2)) + '. '
+                    + r'You remove **forces** #' + str(state.removed_forces)
+                    + ' and add forces on ' + str(np.round(state.new_f_ext,2)) + '. '
+                    + r''' </font>''', unsafe_allow_html=True)
 else:
     st.plotly_chart(fig)
 
