@@ -34,6 +34,8 @@ import math
 ###############################################################################
 
 # 3. create error-messages
+# 4. allow vectorized input
+# 5. fix [] error on internal_forces
 
 ###############################################################################
 # CALCULATIONS
@@ -124,7 +126,7 @@ def update_data(nodes,members,support,f_ext,debug,rods_per_node):
     matrix = np.append(matrix, np.zeros([len(matrix),len(support)]),axis = 1)
     for s in support_range:
         inode = int(support[s,0])
-        angle = support[s,1]
+        angle = np.radians(support[s,1])
         if debug:
             st.write('writing support #' + str(s) + ' at node #' + str(inode) + ' to matrix')
         matrix[2*inode,n_members+s] = np.cos(angle) # forces along x
@@ -134,7 +136,7 @@ def update_data(nodes,members,support,f_ext,debug,rods_per_node):
     rhs = np.zeros([2*n_nodes,1])
     for force in force_range:
         inode = int(f_ext[force,0])
-        angle = f_ext[force,1]
+        angle = np.radians(f_ext[force,1])
         newtons = f_ext[force,2]
         # external force along x
         rhs[2*inode,0] = newtons*np.cos(angle)
@@ -368,7 +370,7 @@ def update_plot(internal_forces,members,nodes,f_ext,support,onlyviz):
         node_index = int(f_ext[f,0])
         x0.append(nodes[node_index,0])
         y0.append(nodes[node_index,1])
-        angle = f_ext[f,1]
+        angle = np.radians(f_ext[f,1])
         newtons = f_ext[f,2]
         # external force along x
         fx.append(newtons*np.cos(angle))
@@ -388,7 +390,7 @@ def update_plot(internal_forces,members,nodes,f_ext,support,onlyviz):
         node_index = int(support[s,0])
         x0.append(nodes[node_index,0])
         y0.append(nodes[node_index,1])
-        angle = support[s,1]
+        angle = np.radians(support[s,1])
         # external force along x
         sx.append(support_length*np.cos(angle))
         # external force along y
@@ -510,7 +512,7 @@ def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize,
     return equation_string
 
 ###############################################################################
-# STREAMLIT
+# STREAMLIT AND STATES
 ###############################################################################
 
 st.set_page_config(layout="wide")
@@ -537,20 +539,14 @@ if 'new_supports' not in state:
 if 'new_support_str' not in state:
     state.new_support_str = ''
 
-st.title("Internal forces of a rod structure")
-
-###############################################################################
-# SIDEBARS
-###############################################################################
-
-l = 5#st.sidebar.number_input(label='length of plot',min_value=2,max_value=10,value=5)
-h = 4#st.sidebar.number_input(label='height of plot',min_value=1,max_value=10,value=4)
-
-all_nodes = []
-for x in range(l+1):
-    for y in range(h+1):
-        all_nodes.append([x,y])
-all_nodes=np.array(all_nodes)
+if 'all_nodes' not in state:
+    l = 5#st.sidebar.number_input(label='length of plot',min_value=2,max_value=10,value=5)
+    h = 4#st.sidebar.number_input(label='height of plot',min_value=1,max_value=10,value=4)
+    all_nodes = []
+    for x in range(l+1):
+        for y in range(h+1):
+            all_nodes.append([x,y])
+    all_nodes=np.array(all_nodes)
 
 if 'members' not in state:
     state.members = np.array([
@@ -569,24 +565,12 @@ if 'members' not in state:
         [16,20]
         ])
     
-onlyviz = st.sidebar.checkbox("Visualization only. Choose this to be able to change the structure. Deselect to update the calculations.")
-if onlyviz:
-    new_f_ext_str = st.sidebar.text_input(label = "add external forces", 
-                                          help = "node angle force",
-                                          placeholder="e.g. '6 90 10'", 
-                                          on_change=new_force_input(), 
-                                          key='new_f_ext_str')
-    new_support_str = st.sidebar.text_input(label = "add supports", 
-                                            help = "node angle",
-                                            placeholder="e.g. '10 90'", 
-                                            on_change=new_support_input(),
-                                            key='new_support_str')
-    
-    apply_changes = st.sidebar.button('Apply changes')#,on_click=update_members(state.removed_members,state.new_members))
-        
-    if apply_changes:
-        update_all(state.removed_members,state.new_members,state.removed_forces,state.removed_supports,state.new_f_ext,state.new_supports)
-          
+st.title("Internal forces of a rod structure")
+
+###############################################################################
+# DEBUG OPTIONS
+###############################################################################
+
 debug = False#st.sidebar.checkbox(label="show development stuff")
 
 if debug:
@@ -597,7 +581,7 @@ if debug:
     
     if 'support' not in state: 
         exec("state.support = np.array([" + support_str + "],dtype='f')")
-        state.support[:,1] = np.radians(state.support[:,1])
+        
     # else:
     #     exec("state.support = np.array([" + support_str + "],dtype='f')")
     
@@ -605,12 +589,12 @@ if debug:
         
     if 'f_ext' not in state: 
         exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
-        state.f_ext[:,1] = np.radians(state.f_ext[:,1])
+        
     # else:
     #     exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
    
     st.sidebar.write('members: ' + str(state.members))
-    st.sidebar.write('nodes: ' + str(all_nodes))
+    st.sidebar.write('nodes: ' + str(state.all_nodes))
     st.sidebar.write('support: ' + str(state.support.round()))
     st.sidebar.write('f_ext: ' + str(state.f_ext.round()))
     
@@ -619,15 +603,53 @@ else:
         state.support = np.array([
             [0, 0],[0, 90],[20, 90]
             ],dtype='f')
-        state.support[:,1] = np.radians(state.support[:,1])
+        
     if 'f_ext' not in state:
         state.f_ext = np.array([
             [5,-90,10],[12,180,10],[15,-90,15]
             ],dtype='f')
-        state.f_ext[:,1] = np.radians(state.f_ext[:,1])
+        
 
+###############################################################################
+# SIDEBARS
+###############################################################################
+
+onlyviz = st.sidebar.checkbox("Visualization only. Choose this to be able to change the structure. Deselect to update the calculations.")
+if onlyviz:
+    vectorinput = False#st.sidebar.checkbox('Use vectorized input.')
+    if vectorinput:
+        support_str = st.sidebar.text_input(label = "support", help = "[node,angle]", 
+                                            value='''[0, 0],[0, 90],[20, 90]''')
+        exec("state.support = np.array([" + support_str + "],dtype='f')")
+        exec("state.support = np.array([" + support_str + "],dtype='f')")
+        
+        f_ext_str = st.sidebar.text_input(label = "external forces", help = "[node,angle,force]", value='''[5,-90,10],[12,180,10],[15,-90,15]''')
+        if 'f_ext' not in state: 
+            exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
+            
+        else:
+            exec("state.f_ext = np.array([" + f_ext_str + "],dtype='f')")
+       
+            
+    else:
+        new_f_ext_str = st.sidebar.text_input(label = "add external forces", 
+                                          help = "node angle force",
+                                          placeholder="e.g. '6 90 10'", 
+                                          on_change=new_force_input(), 
+                                          key='new_f_ext_str')
+        new_support_str = st.sidebar.text_input(label = "add supports", 
+                                            help = "node angle",
+                                            placeholder="e.g. '10 90'", 
+                                            on_change=new_support_input(),
+                                            key='new_support_str')
+    
+        apply_changes = st.sidebar.button('Apply changes')#,on_click=update_members(state.removed_members,state.new_members))
+        
+        if apply_changes:
+            update_all(state.removed_members,state.new_members,state.removed_forces,state.removed_supports,state.new_f_ext,state.new_supports)
+          
 if 'internal_forces' not in state:
-    state.internal_forces = []
+    state.internal_forces = np.array([])
 if 'matrix' not in state:
     state.matrix = []
 if 'rhs' not in state:
@@ -635,10 +657,12 @@ if 'rhs' not in state:
 
 if debug:
     decimals = st.sidebar.number_input(label="precision of print",min_value=0,max_value=5,value=2)
-    textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
+    #textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
 else:
     decimals = 2
-    textsize = r'\scriptsize'
+    #textsize = r'\scriptsize'
+textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
+
     
 ###############################################################################
 # VISUAL VS CALCULATED
@@ -651,18 +675,18 @@ if onlyviz:
 # CALCULATIONS
 ###############################################################################
 
-[rods_per_node, connected_nodes, issquare, forces_connected] = check_data(all_nodes,state.members,state.support,state.f_ext)
+[rods_per_node, connected_nodes, issquare, forces_connected] = check_data(state.all_nodes,state.members,state.support,state.f_ext)
 
 if onlyviz:
     # calculating
-    [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support,onlyviz)
+    [fig,forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
 else:
     if issquare:
-        state.matrix, state.rhs, state.internal_forces = update_data(all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node)
-        [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support,onlyviz)
+        state.matrix, state.rhs, state.internal_forces = update_data(state.all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node)
+        [fig,forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
     else:
         st.warning("I am having issues solving your system. Return to visualization only to check whether your system is solvable. If you neet to reset, press 'c' or refresh your browser.")
-        [fig,forcemap] = update_plot(state.internal_forces,state.members,all_nodes,state.f_ext,state.support,onlyviz)
+        [fig,forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
     
 
 ###############################################################################
@@ -670,7 +694,7 @@ else:
 ###############################################################################
 
 if onlyviz:
-    with st.expander('Look at the plot', expanded=True):
+    with st.expander('', expanded=True):
         sn = plotly_events(fig)
         if debug:
             st.write('return value of plotly_events: ' + str(sn))
@@ -736,6 +760,6 @@ if onlyviz:
 else:
     st.plotly_chart(fig)
 
-with st.expander('Look at the Matrix. Select font size in the sidebar', expanded=True):
+with st.expander('', expanded=True):
     st.markdown(print_equations(state.matrix, state.rhs, state.internal_forces,len(state.members),len(state.support),decimals,textsize,len(connected_nodes)))
     
