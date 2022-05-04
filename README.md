@@ -5,7 +5,7 @@
 
 This is a simple web app demonstrating the linear equation system required to solve a static beam structure. It is largely based on code from @m-r-schenk. [Click here](https://share.streamlit.io/PhiSpel/spielbeispiel-lgls/main) to launch the app. This app is built using python and streamlit.
 
-![](screenshot.PNG)
+![](screenshot.png)
 
 To run locally, enter the following commands into a terminal to install all requirements first:
 
