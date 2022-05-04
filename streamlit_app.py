@@ -34,6 +34,7 @@ from streamlit_plotly_events import plotly_events
 ###############################################################################
 
 # 6. always show matrix
+# 7. remove forces/supports via indices
 
 ###############################################################################
 # CALCULATIONS
@@ -76,7 +77,7 @@ def check_data(nodes,members,support,f_ext):
     return rods_per_node, connected_nodes, issquare, forces_connected
 
 # maybe use @st.cache()?
-def update_data(nodes,members,support,f_ext,debug,rods_per_node):
+def update_data(nodes,members,support,f_ext,debug,rods_per_node,buildonly=False):
     
     n_members = len(members)
     members_range = np.arange(0,n_members)
@@ -148,12 +149,12 @@ def update_data(nodes,members,support,f_ext,debug,rods_per_node):
         if rods_per_node[inode] <= 1:
             deleterows.append(k)
             deleterows.append(k+1)
-    # if debug:
-    #     connected_nodes=np.delete(nodes,deletenodes,0)
-    #     st.write('nodes: ' + str(nodes) + ' n_nodes: ' + str(n_nodes))
-    #     st.markdown(print_equations(matrix, rhs, [],len(members),len(state.support),1,'\scriptsize'))
-    #     st.write('connected nodes: ' + str(connected_nodes))
-    #     st.write('delete rows: ' + str(deleterows))
+    if debug:
+        #connected_nodes=np.delete(nodes,deletenodes,0)
+        st.write('nodes: ' + str(nodes) + ' n_nodes: ' + str(n_nodes))
+        st.markdown(print_equations(matrix, rhs, [],len(members),len(state.support),1,'\scriptsize'))
+        st.write('connected nodes: ' + str(connected_nodes))
+        st.write('delete rows: ' + str(deleterows))
     matrix = np.delete(matrix,deleterows,0)
     rhs = np.delete(rhs,deleterows,0)    
     #st.write(str(matrix))
@@ -162,7 +163,10 @@ def update_data(nodes,members,support,f_ext,debug,rods_per_node):
         st.markdown(print_equations(matrix, rhs, [],len(members),len(state.support),1,'\scriptsize'))
         
     # solve for unknowns
-    internal_forces = np.linalg.solve(matrix, rhs)
+    if buildonly:
+        internal_forces = []
+    else:
+        internal_forces = np.linalg.solve(matrix, rhs)
     
     return matrix, rhs, internal_forces
 
@@ -198,6 +202,28 @@ def new_support_input():
         state.new_support_str = ''
     return
 
+def new_force_delete():
+    if not state.force_delete_str == '':
+        if len(state.force_delete_str) > 2:
+            st.warning('Delete one force at a time!')
+        else:
+            iforce = int(state.force_delete_str)
+            if iforce not in state.removed_forces:
+                state.removed_forces.append(iforce)
+        state.force_delete_str = ''
+    return
+
+def new_support_delete():
+    if not state.support_delete_str == '':
+        if len(state.support_delete_str) > 2:
+            st.warning('Delete one support at a time!')
+        else:
+            isupport = int(state.support_delete_str)
+            if isupport not in state.removed_supports:
+                state.removed_supports.append(isupport)
+        state.support_delete_str = ''
+    return
+
 def new_array(arraytype):
     if arraytype == 'support':
         exec("state.support = np.array([" + state.support_str + "])")
@@ -231,7 +257,7 @@ def update_all(removed_members,new_members,removed_forces,removed_supports,new_f
         
     if not removed_supports == []:
         state.support = np.delete(state.support,removed_supports,axis=0)
-        state.removed_support = []
+        state.removed_supports = []
     if not new_supports == [[]]:
         state.support = np.append(state.support,new_supports,axis=0)
         state.new_supports = [[]]
@@ -516,15 +542,19 @@ def latex_to_md(textsize):
     string += r'''"> '''
     return string
 
-def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize,n_nodes):
+def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize,n_nodes,onlyviz):
     label_vector = []
     k=0
     for node in connected_nodes:
-        label_vector.append([r' \text{N.' + str(int(np.floor(k/2))) + r' ' + str(node)])
+        label_vector.append([r' \text{'
+                             #+ 'N.' + str(int(np.floor(k/2))) + ' '
+                             + str(node)])
         label_vector[k][0] += ', x'
         label_vector[k][0] += '}'
         k+=1
-        label_vector.append([r' \text{N.' + str(int(np.floor(k/2))) + r' ' + str(node)])
+        label_vector.append([r' \text{'
+                             #+ 'N.' + str(int(np.floor(k/2))) + r' '
+                             + str(node)])
         label_vector[k][0] += ', y'
         label_vector[k][0] += '}'
         k+=1
@@ -546,10 +576,10 @@ def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize,
     equation_string += bmatrix(matrix,'b')
     equation_string += ' & '
     equation_string += '\cdot '
-    if not internal_forces == []:
-        equation_string += bmatrix(internal_forces,'b')
+    if (onlyviz) | (internal_forces == []):
+        equation_string += '?'
     else:
-        equation_string += '?'#bmatrix(internal_forces,'b')
+        equation_string += bmatrix(internal_forces,'b')
     equation_string += ' & '
     equation_string += '='
     equation_string += bmatrix(rhs,'b')
@@ -580,6 +610,8 @@ if 'new_f_ext_str' not in state:
     state.new_f_ext_str = ''
 if 'f_ext_str' not in state:
     state.f_ext_str = ''
+if 'force_delete_str' not in state:
+    state.force_delete_str = ''
     
 if 'removed_supports' not in state:
     state.removed_supports = []
@@ -589,6 +621,8 @@ if 'new_support_str' not in state:
     state.new_support_str = ''
 if 'support_str' not in state:
     state.support_str = ''
+if 'support_delete_str' not in state:
+    state.support_delete_str = ''
 
 # if 'internal_forces' not in state:
 #     state.internal_forces = np.array([])
@@ -626,7 +660,7 @@ if 'members' not in state:
 st.title("Internal forces of a rod structure")
 
 with st.expander('Explanation'):
-    st.write("You can see a rod system with supports and forces in the plot. Below, you see the linear system of equations that is solved to calculate the iternal forces of the rods.  \n "
+    st.write("Below, you can see a rod system with supports and forces in the plot. Below, you see the linear system of equations that is solved to calculate the iternal forces of the rods.  \n "
              + "Select 'Interactive mode' to be able to change the beam structure.  \n "
              + "Deselect rods via the orange 'x' markers. Add rods by klicking both nodes after each other (you may need to hide the rod-markers by klicking on 'x members for deselection' in the legend). You get information about which node(s) you chose below the plot.  \n "
              + "Deselect supports or forces by klicking the points of their arrows or by choosing 'Use vectors as input' in the sidebar. Add new ones in the sidebar.  \n "
@@ -673,8 +707,8 @@ with col4:
     calculate = st.button('Update calculations')
     if calculate: onlyviz = False
 
-if onlyviz:
-    st.write('Mind the admonitions below the plot about requirements to the rod system.')
+# if onlyviz:
+#     st.write('Mind the admonitions below the plot about requirements to the rod system.')
 
 ###############################################################################
 # SIDEBARS
@@ -710,12 +744,29 @@ if onlyviz:
                                           placeholder="e.g. '6 90 10'", 
                                           on_change=new_force_input(), 
                                           key='new_f_ext_str')
+        
         new_support_str = st.sidebar.text_input(label = "add supports", 
                                             help = "node angle",
                                             placeholder="e.g. '10 90'", 
                                             on_change=new_support_input(),
                                             key='new_support_str')
-    
+        
+        st.sidebar.markdown(textsize_md + 'Currently, you have these forces: '
+                            + str(state.f_ext) + '. Would you like to delete one? '
+                            + r''' </font>''', unsafe_allow_html=True)
+        st.sidebar.text_input(label='remove external forces', 
+                              placeholder="IDs start at 0!",
+                              on_change=new_force_delete(),
+                              key='force_delete_str')
+        
+        st.sidebar.markdown(textsize_md + 'Currently, you have these supports: '
+                            + str(state.f_ext) + '. Would you like to delete one? '
+                            + r''' </font>''', unsafe_allow_html=True)
+        st.sidebar.text_input(label='remove supports',
+                              placeholder="IDs start at 0!",
+                              on_change=new_support_delete(),
+                              key='support_delete_str')
+        
         if apply_changes:
             update_all(state.removed_members,state.new_members,state.removed_forces,state.removed_supports,state.new_f_ext,state.new_supports)
             state.selected_nodes = []
@@ -727,7 +778,7 @@ if onlyviz:
 [rods_per_node, connected_nodes, issquare, forces_connected] = check_data(state.all_nodes,state.members,state.support,state.f_ext)
 
 if 'matrix' not in state:
-    state.matrix, state.rhs, state.internal_forces = update_data(state.all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node)
+    [state.matrix, state.rhs, state.internal_forces] = update_data(state.all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node)
 if 'fig' not in state:
     [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
 
@@ -738,7 +789,7 @@ if onlyviz:
         [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
 elif calculate:
     if issquare:
-        state.matrix, state.rhs, state.internal_forces = update_data(state.all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node)
+        [state.matrix, state.rhs, state.internal_forces] = update_data(state.all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node)
         [state.fig,state.forcemap] = update_plot(state.internal_forces,state.members,state.all_nodes,state.f_ext,state.support,onlyviz)
     else:
         st.warning("I am having issues solving your system. Return to interactive mode to check whether your system is solvable. If you need to reset, press 'Reste data'.")
@@ -761,44 +812,75 @@ if onlyviz:
         if sn[0]['curveNumber'] == len(state.members)+0:
             state.selected_nodes.append(sn[0]['pointNumber'])
             if len(state.selected_nodes) == 1:
-                st.write('You selected node #'
+                st.markdown(textsize_md + 'You selected node #'
                          + str(sn[0]['pointNumber'])
-                         + '. Select another one to draw a new rod')
-            nodes_string = 'Current storage in state.selected_nodes: ' + str(state.selected_nodes)
-            if len(state.selected_nodes) == 2:
-                if state.selected_nodes[1] == state.selected_nodes[0]:
-                    nodes_string += '. Will not write to state.new_members, b/c you selected the same node twice.'
-                else:
+                         + '. Select another one to draw a new rod. '
+                         + r''' </font>''', unsafe_allow_html=True)
+            elif len(state.selected_nodes) == 2:
+                if not state.selected_nodes[1] == state.selected_nodes[0]:
                     new_member(state.selected_nodes)
-                    nodes_string += '. Wrote nodes to state.new_members.'
-                state.selected_nodes = []
+                    st.markdown(textsize_md + 'You selected nodes #'
+                         + str(state.new_members[-1])
+                         + ". See below which changes will be applied by 'update plot'. "
+                         + r''' </font>''', unsafe_allow_html=True)
+                    state.selected_nodes = []
+                else:
+                    st.markdown(textsize_md + 'You selected node #'
+                             + str(sn[0]['pointNumber'])
+                             + '. Twice. Select a different one. '
+                             + r''' </font>''', unsafe_allow_html=True)
             elif len(state.selected_nodes) > 2:
                 state.selected_nodes = []
-                nodes_string += '. Must be a bug. Cleared selected nodes.'
-            st.write(nodes_string)
+                st.markdown(textsize_md + 'You selected more than 2 nodes. Must be a bug. Cleared selected nodes.'
+                         + r''' </font>''', unsafe_allow_html=True)
+            if debug:
+                nodes_string = 'Current storage in state.selected_nodes: ' + str(state.selected_nodes)
+                if len(state.selected_nodes) == 2:
+                    if state.selected_nodes[1] == state.selected_nodes[0]:
+                        nodes_string += '. Will not write to state.new_members, b/c you selected the same node twice.'
+                    else:
+                        new_member(state.selected_nodes)
+                        nodes_string += '. Wrote nodes to state.new_members.'
+                    state.selected_nodes = []
+                elif len(state.selected_nodes) > 2:
+                    state.selected_nodes = []
+                    nodes_string += '. Must be a bug. Cleared selected nodes.'
+                st.write(nodes_string)
+                
+        # Will deselect supports and forces explicitly until I find out how exactly the nodes in the quiver are numbered    
+        # if sn[0]['curveNumber'] == len(state.members)+1:
+        #     if (sn[0]['pointNumber']-10)%4 == 0:
+        #         iforce = int((sn[0]['pointNumber']-10)/4)
+        #         if iforce not in state.removed_forces:
+        #             state.removed_forces.append(iforce)
+        #     else:
+        #         st.write('Please select the force via the tip of the arrow.')
             
-        if sn[0]['curveNumber'] == len(state.members)+1:
-            if (sn[0]['pointNumber']-10)%4 == 0:
-                iforce = int((sn[0]['pointNumber']-10)/4)
-                if iforce not in state.removed_forces:
-                    state.removed_forces.append(iforce)
-            else:
-                st.write('Please select the force via the tip of the arrow.')
-            
-        if sn[0]['curveNumber'] == len(state.members)+2:
-            if (sn[0]['pointNumber']-10)%4 == 0:
-                isupport = int((sn[0]['pointNumber']-10)/4)
-                if isupport not in state.removed_supports:
-                    state.removed_supports.append(isupport)
-            else:
-                st.write('Please select the support via the tip of the arrow.')
+        # if sn[0]['curveNumber'] == len(state.members)+2:
+        #     if (sn[0]['pointNumber']-10)%4 == 0:
+        #         isupport = int((sn[0]['pointNumber']-10)/4)
+        #         if isupport not in state.removed_supports:
+        #             state.removed_supports.append(isupport)
+        #     else:
+        #         st.write('Please select the support via the tip of the arrow.')
             
         if sn[0]['curveNumber'] == len(state.members)+3:
-            state.removed_members.append(sn[0]['pointNumber'])
+            if sn[0]['pointNumber'] not in state.removed_members:
+                state.removed_members.append(sn[0]['pointNumber'])
             
     # checking if we will get a square matrix
     if forces_connected == False:
         st.warning('Not all forces are connected. You may solve the system anyway.')
+    
+    st.markdown(textsize_md
+                + r"'Update plot' will remove **members** #" + str(state.removed_members)
+                + ' and add members on ' + str(state.new_members) + '. '
+                + r'You remove **supports** #' + str(state.removed_supports)
+                + 'and add supports on ' + str(np.round(state.new_supports,2)) + '. '
+                + r'You remove **forces** #' + str(state.removed_forces)
+                + ' and add forces on ' + str(np.round(state.new_f_ext,2)) + '. '
+                + r''' </font>''', unsafe_allow_html=True)
+    
     status_string = (textsize_md + r'''You need to fulfill 
         $$ 2 \cdot n_\text{nodes} = n_\text{members} + n_\text{supports} $$
         to get a square matrix. ''' + 'You have '
@@ -813,16 +895,14 @@ if onlyviz:
         else:
             status_string += 'You need to remove members or supports or add more nodes.'
     st.markdown(status_string + r''' </font>''', unsafe_allow_html=True)
-    st.markdown(textsize_md
-                + r'You remove **members** #' + str(state.removed_members)
-                + ' and add members on ' + str(state.new_members) + '. '
-                + r'You remove **supports** #' + str(state.removed_supports)
-                + 'and add supports on ' + str(np.round(state.new_supports,2)) + '. '
-                + r'You remove **forces** #' + str(state.removed_forces)
-                + ' and add forces on ' + str(np.round(state.new_f_ext,2)) + '. '
-                + r''' </font>''', unsafe_allow_html=True)
+        
 else:
     st.plotly_chart(fig)
 
-st.markdown(print_equations(state.matrix, state.rhs, state.internal_forces,len(state.members),len(state.support),decimals,textsize,len(connected_nodes)))
+if onlyviz:
+    buildonly = True
+    matrix, rhs, internal_forces = update_data(state.all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node,buildonly)
+    st.markdown(print_equations(matrix, rhs, internal_forces,len(state.members),len(state.support),decimals,textsize,len(connected_nodes),onlyviz))
+else:
+    st.markdown(print_equations(state.matrix, state.rhs, state.internal_forces,len(state.members),len(state.support),decimals,textsize,len(connected_nodes),onlyviz))
     
