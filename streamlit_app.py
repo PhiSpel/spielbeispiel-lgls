@@ -33,8 +33,6 @@ from streamlit_plotly_events import plotly_events
 # TO-DO
 ###############################################################################
 
-# 6. always show matrix
-# 7. remove forces/supports via indices
 
 ###############################################################################
 # CALCULATIONS
@@ -751,8 +749,19 @@ if onlyviz:
                                             on_change=new_support_input(),
                                             key='new_support_str')
         
+        f_ext_text = ''
+        for i in range(len(state.f_ext)):
+                f_ext_text += str(i) + ': ' + str(state.f_ext[i])
+                if i < len(state.f_ext)-1:
+                        f_ext_text += ', '
+        support_text = ''
+        for i in range(len(state.support)):
+                support_text += str(i) + ': ' + str(state.support[i])
+                if i < len(state.support)-1:
+                        support_text += ', '
+        
         st.sidebar.markdown(textsize_md + 'Currently, you have these forces: '
-                            + str(state.f_ext) + '. Would you like to delete one? '
+                            + f_ext_text + '. Would you like to delete one? '
                             + r''' </font>''', unsafe_allow_html=True)
         st.sidebar.text_input(label='remove external forces', 
                               placeholder="IDs start at 0!",
@@ -760,7 +769,7 @@ if onlyviz:
                               key='force_delete_str')
         
         st.sidebar.markdown(textsize_md + 'Currently, you have these supports: '
-                            + str(state.f_ext) + '. Would you like to delete one? '
+                            + support_text + '. Would you like to delete one? '
                             + r''' </font>''', unsafe_allow_html=True)
         st.sidebar.text_input(label='remove supports',
                               placeholder="IDs start at 0!",
