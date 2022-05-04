@@ -702,7 +702,7 @@ if reset: reset_data()
 with col2:
     onlyviz = st.checkbox("Interactive mode",key='onlyviz')
 with col3:
-    apply_changes = st.button('Update plot')#,on_click=update_members(state.removed_members,state.new_members))
+    apply_changes = st.button('Update plot and matrix')#,on_click=update_members(state.removed_members,state.new_members))
 with col4:
     calculate = st.button('Update calculations')
     if calculate: onlyviz = False
