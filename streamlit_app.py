@@ -498,7 +498,7 @@ def update_plot(internal_forces,members,nodes,f_ext,support,onlyviz):
 # PRINTING OUTPUT
 ###############################################################################
 
-def bmatrix(a,matrixtype=''):
+def bmatrix(a,showzeros,matrixtype=''):
     # if matrixtype == 'h':
     #     text = r' \begin{matrix} '
     #     text += '\n'
@@ -515,7 +515,10 @@ def bmatrix(a,matrixtype=''):
     text += '\n'
     for x in range(len(a)):
         for y in range(len(a[x])):
-            text += str(a[x][y])
+            if a[x][y] == 0:
+                text += showzeros
+            else:
+                text += str(a[x][y])
             text += r' & '
         text = text[:-2]
         text += r'\\'
@@ -540,7 +543,7 @@ def latex_to_md(textsize):
     string += r'''"> '''
     return string
 
-def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize,n_nodes,onlyviz):
+def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize,n_nodes,onlyviz,showzeros):
     label_vector = []
     k=0
     for node in connected_nodes:
@@ -569,18 +572,18 @@ def print_equations(matrix, rhs, internal_forces,n_rods,n_bcs,decimals,textsize,
     equation_string += r'\text{' + str(n_nodes) + r' nodes} & \text{' + str(n_rods) + ' rods and ' + str(n_bcs) + ' boundary conditions}'
     #equation_string += bmatrix(label_vector,'h')
     equation_string += r' & \text{internal forces} & \text{external forces}\\'
-    equation_string += bmatrix(label_vector,'v')
+    equation_string += bmatrix(label_vector,showzeros,'v')
     equation_string += ' & '
-    equation_string += bmatrix(matrix,'b')
+    equation_string += bmatrix(matrix,showzeros,'b')
     equation_string += ' & '
     equation_string += '\cdot '
     if (onlyviz) | (internal_forces == []):
         equation_string += '?'
     else:
-        equation_string += bmatrix(internal_forces,'b')
+        equation_string += bmatrix(internal_forces,showzeros,'b')
     equation_string += ' & '
     equation_string += '='
-    equation_string += bmatrix(rhs,'b')
+    equation_string += bmatrix(rhs,showzeros,'b')
     equation_string += '\end{matrix}$'
     return equation_string
 
@@ -719,6 +722,8 @@ with col4:
 
 textsize = st.sidebar.selectbox(label="font size of formula", options=[r'\normalsize',r'\small',r'\footnotesize',r'\scriptsize',r'\tiny'],index=3)
 textsize_md = latex_to_md(textsize)
+
+showzeros = st.sidebar.selectbox(label="show zeros as...", options=[' 0 ',' '])
 
 if onlyviz:
     vectorinput = st.sidebar.checkbox("Use vectors as input. (klick 'Update plot' once to initialize)")
@@ -916,7 +921,17 @@ else:
 if onlyviz:
     buildonly = True
     matrix, rhs, internal_forces = update_data(state.all_nodes,state.members,state.support,state.f_ext,debug,rods_per_node,buildonly)
-    st.markdown(print_equations(matrix, rhs, internal_forces,len(state.members),len(state.support),decimals,textsize,len(connected_nodes),onlyviz))
+    st.markdown(
+        print_equations(
+            matrix, rhs, internal_forces,
+            len(state.members),len(state.support),
+            decimals,textsize,len(connected_nodes),
+            onlyviz,showzeros))
 else:
-    st.markdown(print_equations(state.matrix, state.rhs, state.internal_forces,len(state.members),len(state.support),decimals,textsize,len(connected_nodes),onlyviz))
+    st.markdown(
+        print_equations(
+            state.matrix, state.rhs, state.internal_forces,
+            len(state.members),len(state.support),
+            decimals,textsize,len(connected_nodes),
+            onlyviz,showzeros))
     
